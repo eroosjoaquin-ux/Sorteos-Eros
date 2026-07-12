@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro · Sorteos Eros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#faf9f5;--panel:#fff;--ink:#1d2420;--ink-soft:#5c6560;--line:#e7e3d8;
+    --verde:#2f6f4f;--verde-suave:#e2f0e6;--verde-borde:#bcdbc7;--oro:#b8901f;--rojo:#b3423a;
+    --sombra:0 10px 30px -12px rgba(29,36,32,0.16);--radio:18px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:radial-gradient(circle at 12% -10%,#eef3ea 0%,transparent 45%),var(--bg);
+    color:var(--ink);font-family:'Manrope',sans-serif;-webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  .wrap{max-width:640px;margin:0 auto;padding:40px 20px 80px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:26px;margin-bottom:20px;}
+  .centro{text-align:center;}
+  header.top{text-align:center;margin-bottom:26px;}
+  header.top h1{font-size:2rem;}
+  .eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:.72rem;font-weight:800;color:var(--ink-soft);margin:0 0 6px;}
+
+  label{font-size:.78rem;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;}
+  input,select{
+    font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+    font-size:.95rem;width:100%;background:#fff;color:var(--ink);
+  }
+  .campo{margin-bottom:16px;}
+  .btn{
+    border:none;border-radius:12px;padding:14px 20px;font-weight:800;font-size:.95rem;
+    background:var(--verde);color:#fff;width:100%;cursor:pointer;transition:transform .15s ease,opacity .15s;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .contador{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--verde-suave);color:var(--verde);font-weight:800;
+    border-radius:999px;padding:9px 16px;margin:0 auto 20px;width:fit-content;font-size:.85rem;
+  }
+
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-bottom:6px;}
+  .casillero{
+    aspect-ratio:1/1;border-radius:8px;background:#fdfdfb;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.72rem;
+    transition:background .15s,transform .1s;user-select:none;
+  }
+  .casillero.disponible{cursor:pointer;}
+  .casillero.disponible:hover{background:#f1f4ef;}
+  .casillero.vendido{background:#f1efe9;color:#b9b3a4;cursor:not-allowed;}
+  .casillero.elegido{background:var(--verde);border-color:var(--verde);color:#fff;transform:scale(1.08);}
+
+  .file-wrap{
+    border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;
+    font-size:.85rem;color:var(--ink-soft);
+  }
+  .file-wrap input{border:none;padding:0;}
+
+  .error-msg{color:var(--rojo);font-size:.85rem;margin-top:10px;min-height:1em;}
+
+  .estado-icon{font-size:2.4rem;margin-bottom:6px;}
+  .estado-icon.ok{color:var(--verde);}
+  .estado-icon.mal{color:var(--rojo);}
+
+  footer{text-align:center;color:var(--ink-soft);font-size:.8rem;padding:10px;}
+
+  @media(max-width:480px){
+    .casillero{font-size:.6rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Sorteos Eros</h1>
+    <p style="color:var(--ink-soft);margin-top:6px" id="subtitulo">Cargando…</p>
+  </header>
+
+  <!-- ESTADO: link inválido -->
+  <div class="card centro" id="vista-invalido" style="display:none">
+    <div class="estado-icon mal">⚠</div>
+    <h2>Este enlace ya no es válido.</h2>
+    <p style="color:var(--ink-soft);margin-top:10px" id="motivo-invalido">Pedile al organizador un nuevo enlace de registro.</p>
+  </div>
+
+  <!-- ESTADO: formulario -->
+  <div id="vista-formulario" style="display:none">
+    <div class="contador" id="contador">0 / 0 números elegidos</div>
+
+    <div class="card">
+      <p class="eyebrow">Elegí tus números</p>
+      <div class="tablero" id="tablero"></div>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">Tus datos</p>
+      <div class="campo"><label>Nombre completo</label><input id="f-nombre" placeholder="Nombre y apellido"></div>
+      <div class="campo"><label>Correo electrónico</label><input id="f-correo" type="email" placeholder="tu@correo.com"></div>
+      <div class="campo"><label>DNI</label><input id="f-dni" placeholder="Documento"></div>
+      <div class="campo"><label>Teléfono</label><input id="f-telefono" placeholder="Con código de área"></div>
+      <div class="campo">
+        <label>Comprobante de pago (imagen o PDF)</label>
+        <div class="file-wrap">
+          <input id="f-comprobante" type="file" accept=".jpg,.jpeg,.png,.pdf">
+        </div>
+      </div>
+      <p class="error-msg" id="form-error"></p>
+      <button class="btn" id="btn-confirmar">Confirmar registro</button>
+    </div>
+  </div>
+
+  <!-- ESTADO: éxito -->
+  <div class="card centro" id="vista-exito" style="display:none">
+    <div class="estado-icon ok">✓</div>
+    <h2>¡Muchas gracias por participar!</h2>
+    <p style="color:var(--ink-soft);margin:10px 0 20px">Sus números fueron registrados correctamente.</p>
+    <a id="link-ver-sorteo" class="btn" style="text-decoration:none;display:inline-block;width:auto;padding:14px 26px">Ver sorteo</a>
+  </div>
+</div>
+
+<footer>Sorteos Eros</footer>
+
+<script>
+const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+
+let linkInfo = null;
+let numerosOcupados = new Set();
+let seleccionados = new Set();
+
+document.getElementById('link-ver-sorteo').href = location.pathname.replace('registro.html','index.html');
+
+function mostrarInvalido(motivo){
+  const textos = {
+    no_existe: 'El enlace no existe. Revisá que lo hayas copiado completo.',
+    usado: 'Este enlace ya alcanzó su límite de números y fue cerrado.',
+    expirado: 'Este enlace superó las 24 horas de validez.'
+  };
+  document.getElementById('motivo-invalido').textContent = textos[motivo] || 'Pedile al organizador un nuevo enlace de registro.';
+  document.getElementById('vista-invalido').style.display = 'block';
+  document.getElementById('subtitulo').textContent = 'Enlace no disponible';
+}
+
+async function init(){
+  if(!token){ mostrarInvalido('no_existe'); return; }
+
+  const { data, error } = await sb.rpc('obtener_link_info', { p_token: token });
+  if(error || !data || !data.valido){
+    mostrarInvalido(data ? data.motivo : 'no_existe');
+    return;
+  }
+  linkInfo = data;
+  document.getElementById('subtitulo').textContent = `Registro para "${data.premio_nombre}"`;
+
+  const { data: numeros } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', data.sorteo_id).order('numero');
+  (numeros||[]).forEach(n=>{ if(n.vendido) numerosOcupados.add(n.numero); });
+
+  construirTablero();
+  actualizarContador();
+  document.getElementById('vista-formulario').style.display = 'block';
+}
+
+function construirTablero(){
+  const tablero = document.getElementById('tablero');
+  tablero.innerHTML = '';
+  for(let n=1;n<=100;n++){
+    const div = document.createElement('div');
+    const ocupado = numerosOcupados.has(n);
+    div.className = 'casillero ' + (ocupado ? 'vendido' : 'disponible');
+    div.textContent = n;
+    if(!ocupado){
+      div.addEventListener('click', ()=> toggleNumero(n, div));
+    }
+    tablero.appendChild(div);
+  }
+}
+
+function toggleNumero(n, el){
+  if(seleccionados.has(n)){
+    seleccionados.delete(n);
+    el.classList.remove('elegido');
+  } else {
+    if(seleccionados.size >= linkInfo.cupos_restantes){
+      mostrarErrorForm(`Este enlace solo permite elegir ${linkInfo.cupos_restantes} número(s).`);
+      return;
+    }
+    seleccionados.add(n);
+    el.classList.add('elegido');
+  }
+  actualizarContador();
+}
+
+function actualizarContador(){
+  document.getElementById('contador').textContent = `${seleccionados.size} / ${linkInfo.cupos_restantes} números elegidos`;
+}
+
+function mostrarErrorForm(msg){
+  document.getElementById('form-error').textContent = msg;
+}
+
+document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
+  mostrarErrorForm('');
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const correo = document.getElementById('f-correo').value.trim();
+  const dni = document.getElementById('f-dni').value.trim();
+  const telefono = document.getElementById('f-telefono').value.trim();
+  const fileInput = document.getElementById('f-comprobante');
+  const file = fileInput.files[0];
+
+  if(seleccionados.size === 0){ mostrarErrorForm('Elegí al menos un número.'); return; }
+  if(!nombre || !correo || !dni || !telefono){ mostrarErrorForm('Completá todos los datos.'); return; }
+  if(!file){ mostrarErrorForm('Subí el comprobante de pago.'); return; }
+
+  const extensionesValidas = ['jpg','jpeg','png','pdf'];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!extensionesValidas.includes(ext)){ mostrarErrorForm('El comprobante debe ser JPG, PNG o PDF.'); return; }
+  if(file.size > 8 * 1024 * 1024){ mostrarErrorForm('El archivo no puede superar 8 MB.'); return; }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+
+  try{
+    const path = `${linkInfo.sorteo_id}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await sb.storage.from('comprobantes').upload(path, file);
+    if(upErr) throw new Error('No se pudo subir el comprobante.');
+    const { data: pub } = sb.storage.from('comprobantes').getPublicUrl(path);
+
+    const { data, error } = await sb.rpc('registrar_compra', {
+      p_token: token,
+      p_numeros: Array.from(seleccionados),
+      p_nombre: nombre,
+      p_correo: correo,
+      p_dni: dni,
+      p_telefono: telefono,
+      p_comprobante_url: pub.publicUrl
+    });
+
+    if(error) throw new Error(error.message.includes('disponibles') ? 'Uno de los números elegidos ya fue tomado por otra persona. Volvé a intentar.' : 'No se pudo completar el registro.');
+
+    document.getElementById('vista-formulario').style.display = 'none';
+    document.getElementById('vista-exito').style.display = 'block';
+  } catch(e){
+    mostrarErrorForm(e.message);
+    btn.disabled = false; btn.textContent = 'Confirmar registro';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

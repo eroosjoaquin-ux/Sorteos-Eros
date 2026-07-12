@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorteos Eros</title>
+<meta name="description" content="Sorteo en vivo · 100 números · Seguí el tablero en tiempo real">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#faf9f5;
+    --panel:#ffffff;
+    --ink:#1d2420;
+    --ink-soft:#5c6560;
+    --line:#e7e3d8;
+    --verde:#2f6f4f;
+    --verde-suave:#e2f0e6;
+    --verde-borde:#bcdbc7;
+    --oro:#b8901f;
+    --oro-suave:#faf1da;
+    --sombra:0 10px 30px -12px rgba(29,36,32,0.16);
+    --radio:18px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 12% -10%, #eef3ea 0%, transparent 45%),
+      radial-gradient(circle at 100% 0%, #f6ede0 0%, transparent 40%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Manrope',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px 80px;}
+
+  /* HEADER */
+  header{padding:56px 20px 28px;text-align:center;}
+  .titulo{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(2.4rem,6vw,4rem);
+    letter-spacing:-0.01em;
+    margin:0;
+    line-height:1.02;
+  }
+  .titulo em{font-style:italic;color:var(--verde);}
+  .ig-pill{
+    display:inline-flex;align-items:center;gap:8px;
+    margin-top:18px;padding:9px 18px;
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;text-decoration:none;color:var(--ink);
+    font-weight:600;font-size:0.92rem;box-shadow:var(--sombra);
+    transition:transform .2s ease;
+  }
+  .ig-pill:hover{transform:translateY(-2px);}
+  .ig-pill svg{width:18px;height:18px;flex:none;}
+
+  /* SECCIONES GENERALES */
+  section{margin-top:44px;}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radio);
+    box-shadow:var(--sombra);
+  }
+  .eyebrow{
+    text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;
+    font-weight:800;color:var(--ink-soft);margin:0 0 10px;
+  }
+
+  /* PREMIO */
+  .premio{padding:28px;}
+  .premio h2{font-family:'Fraunces',serif;font-size:1.7rem;margin:0 0 8px;font-weight:600;}
+  .premio p{color:var(--ink-soft);line-height:1.6;margin:0 0 18px;}
+  .galeria{display:flex;gap:10px;flex-wrap:wrap;}
+  .galeria img{
+    width:84px;height:84px;object-fit:cover;border-radius:12px;cursor:pointer;
+    border:1px solid var(--line);transition:transform .15s ease;
+  }
+  .galeria img:hover{transform:scale(1.05);}
+  .galeria .vacio{color:var(--ink-soft);font-size:.9rem;}
+
+  /* GANADOR */
+  .ganador-panel{
+    padding:38px 28px;text-align:center;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#ffffff,#fbf8f1);
+  }
+  .ganador-panel.activo{border-color:var(--oro);}
+  .ganador-estado{
+    font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);
+    font-size:1.15rem;margin:0;
+  }
+  .ganador-resultado{display:none;}
+  .ganador-resultado.show{display:block;animation:pop .6s cubic-bezier(.2,.9,.25,1);}
+  .ganador-resultado .eyebrow{color:var(--oro);}
+  .ganador-numero{
+    font-family:'Fraunces',serif;font-weight:700;font-size:clamp(3rem,10vw,5.5rem);
+    color:var(--oro);line-height:1;margin:4px 0;
+  }
+  .ganador-nombre{font-size:1.3rem;font-weight:700;}
+  @keyframes pop{
+    0%{opacity:0;transform:scale(.85) translateY(10px);}
+    100%{opacity:1;transform:scale(1) translateY(0);}
+  }
+
+  /* TABLERO */
+  .tablero-wrap{padding:28px;}
+  .tablero{
+    display:grid;grid-template-columns:repeat(10,1fr);gap:7px;
+  }
+  .casillero{
+    aspect-ratio:1/1;border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:#fdfdfb;border:1px solid var(--line);
+    font-weight:700;transition:background .25s ease,transform .2s ease,box-shadow .25s ease;
+    padding:2px;text-align:center;
+  }
+  .casillero .num{font-size:.82rem;line-height:1;}
+  .casillero .nom{
+    font-size:.5rem;font-weight:600;color:var(--verde);
+    margin-top:2px;line-height:1.05;max-width:100%;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;
+  }
+  .casillero.vendido{background:var(--verde-suave);border-color:var(--verde-borde);}
+  .casillero.encendido{
+    background:var(--verde);border-color:var(--verde);color:#fff;
+    transform:scale(1.12);box-shadow:0 0 0 4px rgba(47,111,79,.18),0 8px 18px -6px rgba(47,111,79,.6);
+  }
+  .casillero.encendido .nom{color:#eafff1;}
+  .casillero.ganador-final{
+    background:var(--oro);border-color:var(--oro);color:#fff;
+    box-shadow:0 0 0 6px rgba(184,144,31,.22);
+  }
+  .casillero.ganador-final .nom{color:#fff9e8;}
+
+  .mensaje-final{
+    text-align:center;color:var(--ink-soft);margin-top:22px;font-size:.95rem;
+  }
+
+  @media (max-width:640px){
+    .casillero .nom{display:none;}
+    header{padding:40px 16px 20px;}
+    .tablero{gap:5px;}
+  }
+
+  /* LIGHTBOX */
+  .lightbox{
+    position:fixed;inset:0;background:rgba(20,22,18,.86);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:24px;
+  }
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:min(90vw,700px);max-height:85vh;border-radius:14px;}
+  .lightbox-close{
+    position:absolute;top:22px;right:26px;color:#fff;font-size:1.8rem;
+    background:none;border:none;cursor:pointer;
+  }
+
+  footer{text-align:center;color:var(--ink-soft);font-size:.82rem;padding:20px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="titulo">Sorteos <em>Eros</em></h1>
+  <a id="ig-link" class="ig-pill" href="https://instagram.com/eros_sorteos" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.25.07 1.63.07 4.81s-.01 3.56-.07 4.81c-.15 3.23-1.67 4.77-4.92 4.92-1.25.06-1.62.07-4.85.07s-3.6-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.25-.07-1.63-.07-4.81s.01-3.56.07-4.81c.15-3.23 1.67-4.77 4.92-4.92C8.4 2.21 8.8 2.2 12 2.2Zm0 1.8c-3.15 0-3.5.01-4.73.07-2.27.1-3.4 1.24-3.5 3.5-.06 1.23-.07 1.58-.07 4.73s.01 3.5.07 4.73c.1 2.27 1.23 3.4 3.5 3.5 1.23.06 1.58.07 4.73.07s3.5-.01 4.73-.07c2.27-.1 3.4-1.23 3.5-3.5.06-1.23.07-1.58.07-4.73s-.01-3.5-.07-4.73c-.1-2.26-1.23-3.4-3.5-3.5C15.5 4.01 15.15 4 12 4Zm0 3.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Zm0 1.8a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2Zm4.6-2a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Z"/></svg>
+    <span id="ig-user">@eros_sorteos</span>
+  </a>
+</header>
+
+<div class="wrap">
+
+  <!-- PREMIO -->
+  <section class="card premio">
+    <p class="eyebrow">Este mes sorteamos</p>
+    <h2 id="premio-nombre">Cargando premio…</h2>
+    <p id="premio-desc"></p>
+    <div class="galeria" id="galeria"></div>
+  </section>
+
+  <!-- GANADOR -->
+  <section class="card ganador-panel" id="ganador-panel">
+    <p class="ganador-estado" id="ganador-estado">Esperando sorteo…</p>
+    <div class="ganador-resultado" id="ganador-resultado">
+      <p class="eyebrow">Ganador</p>
+      <div class="ganador-numero" id="ganador-numero-txt">--</div>
+      <div class="ganador-nombre" id="ganador-nombre-txt"></div>
+    </div>
+  </section>
+
+  <!-- TABLERO -->
+  <section class="card tablero-wrap">
+    <div class="tablero" id="tablero"></div>
+    <p class="mensaje-final">El sorteo se realizará una vez vendidos los 100 números.</p>
+  </section>
+
+</div>
+
+<footer>Sorteos Eros · sorteo transparente, en vivo por Instagram</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightbox-close">&times;</button>
+  <img id="lightbox-img" src="" alt="Foto del premio">
+</div>
+
+<script>
+const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let sorteoActual = null;      // fila de sorteos
+let numerosActuales = [];     // fila de numeros_publicos
+let animando = false;
+
+const tableroEl = document.getElementById('tablero');
+const ganadorPanel = document.getElementById('ganador-panel');
+const ganadorEstado = document.getElementById('ganador-estado');
+const ganadorResultado = document.getElementById('ganador-resultado');
+const ganadorNumTxt = document.getElementById('ganador-numero-txt');
+const ganadorNomTxt = document.getElementById('ganador-nombre-txt');
+
+// ---------- Construcción del tablero ----------
+function construirTablero(){
+  tableroEl.innerHTML = '';
+  for(let n=1;n<=100;n++){
+    const div = document.createElement('div');
+    div.className = 'casillero';
+    div.id = 'casillero-'+n;
+    div.innerHTML = `<span class="num">${n}</span><span class="nom"></span>`;
+    tableroEl.appendChild(div);
+  }
+}
+construirTablero();
+
+function pintarNumeros(){
+  numerosActuales.forEach(n=>{
+    const el = document.getElementById('casillero-'+n.numero);
+    if(!el) return;
+    el.classList.toggle('vendido', !!n.vendido);
+    el.querySelector('.nom').textContent = n.vendido ? (n.nombre_completo || '') : '';
+  });
+}
+
+// ---------- Carga inicial ----------
+async function cargarConfig(){
+  const { data } = await sb.from('config').select('*').eq('id',1).single();
+  if(data){
+    document.getElementById('ig-user').textContent = '@'+data.instagram_usuario;
+    document.getElementById('ig-link').href = data.instagram_url;
+  }
+}
+
+async function cargarSorteoActivo(){
+  const { data } = await sb.from('sorteos')
+    .select('*')
+    .in('estado',['activo','en_curso'])
+    .order('created_at',{ascending:false})
+    .limit(1)
+    .maybeSingle();
+  if(!data) return;
+  sorteoActual = data;
+  document.getElementById('premio-nombre').textContent = data.premio_nombre || 'Premio sorpresa';
+  document.getElementById('premio-desc').textContent = data.premio_descripcion || '';
+  await cargarFotos();
+  await cargarNumeros();
+  actualizarGanadorUI();
+  suscribirRealtime();
+}
+
+async function cargarFotos(){
+  const galeria = document.getElementById('galeria');
+  galeria.innerHTML = '';
+  const { data } = await sb.from('premio_fotos').select('*').eq('sorteo_id', sorteoActual.id).order('orden');
+  if(!data || data.length===0){
+    galeria.innerHTML = '<span class="vacio">Sin fotos cargadas todavía.</span>';
+    return;
+  }
+  data.forEach(f=>{
+    const img = document.createElement('img');
+    img.src = f.url; img.alt = 'Foto del premio';
+    img.addEventListener('click', ()=> abrirLightbox(f.url));
+    galeria.appendChild(img);
+  });
+}
+
+async function cargarNumeros(){
+  const { data } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
+  numerosActuales = data || [];
+  pintarNumeros();
+}
+
+function actualizarGanadorUI(){
+  if(sorteoActual.ganador_numero && sorteoActual.estado==='en_curso' && !animando){
+    // Ya hay ganador guardado (por ejemplo, se recargó la página después del sorteo)
+    mostrarGanadorFinal(sorteoActual.ganador_numero, sorteoActual.ganador_nombre, false);
+  } else if(sorteoActual.sorteo_en_curso && !animando){
+    iniciarAnimacionSorteo();
+  }
+}
+
+// ---------- Lightbox ----------
+function abrirLightbox(src){
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+document.getElementById('lightbox-close').addEventListener('click', ()=>{
+  document.getElementById('lightbox').classList.remove('show');
+});
+document.getElementById('lightbox').addEventListener('click', (e)=>{
+  if(e.target.id==='lightbox') document.getElementById('lightbox').classList.remove('show');
+});
+
+// ---------- Animación del sorteo (20 segundos, solo números vendidos) ----------
+async function iniciarAnimacionSorteo(){
+  animando = true;
+  ganadorEstado.textContent = 'Sorteando…';
+  ganadorResultado.classList.remove('show');
+
+  const vendidos = numerosActuales.filter(n=>n.vendido).map(n=>n.numero);
+  if(vendidos.length===0){ animando=false; return; }
+
+  const DURACION_MS = 20000;
+  const inicio = performance.now();
+  let anterior = null;
+
+  function frame(ahora){
+    const t = Math.min((ahora - inicio) / DURACION_MS, 1);
+    // easing: rápido al inicio, lento al final
+    const progresoCurva = 1 - Math.pow(1 - t, 3);
+    // el intervalo entre saltos crece con el progreso (de ~70ms a ~450ms)
+    const intervaloObjetivo = 70 + progresoCurva * 380;
+
+    if(t < 1){
+      if(anterior===null || ahora - anterior >= intervaloObjetivo){
+        anterior = ahora;
+        resaltarAlAzar(vendidos);
+      }
+      requestAnimationFrame(frame);
+    } else {
+      finalizarAnimacion();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+let ultimoResaltado = null;
+function resaltarAlAzar(lista){
+  if(ultimoResaltado){
+    document.getElementById('casillero-'+ultimoResaltado)?.classList.remove('encendido');
+  }
+  const num = lista[Math.floor(Math.random()*lista.length)];
+  const el = document.getElementById('casillero-'+num);
+  if(el) el.classList.add('encendido');
+  ultimoResaltado = num;
+}
+
+async function finalizarAnimacion(){
+  if(ultimoResaltado){
+    document.getElementById('casillero-'+ultimoResaltado)?.classList.remove('encendido');
+  }
+  // Vuelve a leer Supabase: para entonces el ganador ya está guardado
+  const { data } = await sb.from('sorteos').select('*').eq('id', sorteoActual.id).single();
+  sorteoActual = data;
+  animando = false;
+  if(data && data.ganador_numero){
+    mostrarGanadorFinal(data.ganador_numero, data.ganador_nombre, true);
+  } else {
+    ganadorEstado.textContent = 'Esperando sorteo…';
+  }
+}
+
+function mostrarGanadorFinal(numero, nombre, animar){
+  document.querySelectorAll('.casillero.ganador-final').forEach(el=>el.classList.remove('ganador-final'));
+  const el = document.getElementById('casillero-'+numero);
+  if(el) el.classList.add('ganador-final');
+  ganadorPanel.classList.add('activo');
+  ganadorEstado.textContent = '';
+  ganadorNumTxt.textContent = '#' + numero;
+  ganadorNomTxt.textContent = nombre || '';
+  if(animar) ganadorResultado.classList.remove('show');
+  requestAnimationFrame(()=> ganadorResultado.classList.add('show'));
+}
+
+// ---------- Realtime ----------
+let canal = null;
+function suscribirRealtime(){
+  if(canal) sb.removeChannel(canal);
+  canal = sb.channel('sorteo-'+sorteoActual.id)
+    .on('postgres_changes', { event:'*', schema:'public', table:'numeros', filter:`sorteo_id=eq.${sorteoActual.id}` }, payload=>{
+      const row = payload.new;
+      if(!row) return;
+      const idx = numerosActuales.findIndex(n=>n.numero===row.numero);
+      const nuevo = { id:row.id, sorteo_id:row.sorteo_id, numero:row.numero, vendido:row.vendido, nombre_completo:row.nombre_completo };
+      if(idx>=0) numerosActuales[idx] = nuevo; else numerosActuales.push(nuevo);
+      pintarNumeros();
+    })
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sorteos', filter:`id=eq.${sorteoActual.id}` }, payload=>{
+      const row = payload.new;
+      sorteoActual = row;
+      if(row.sorteo_en_curso && !animando){
+        iniciarAnimacionSorteo();
+      }
+      if(row.estado === 'finalizado'){
+        // El admin generó un sorteo nuevo: recargamos todo
+        setTimeout(()=> location.reload(), 800);
+      }
+    })
+    .on('postgres_changes', { event:'*', schema:'public', table:'premio_fotos', filter:`sorteo_id=eq.${sorteoActual.id}` }, ()=>{
+      cargarFotos();
+    })
+    .subscribe();
+}
+
+// ---------- Init ----------
+(async function init(){
+  await cargarConfig();
+  await cargarSorteoActivo();
+  sb.rpc('incrementar_visita');
+})();
+</script>
+</body>
+</html>

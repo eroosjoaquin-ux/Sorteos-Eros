@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin · Sorteos Eros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#f3f2ee;--panel:#fff;--ink:#1d2420;--ink-soft:#636b65;--line:#e3e0d6;
+    --verde:#2f6f4f;--verde-suave:#e2f0e6;--oro:#b8901f;--rojo:#b3423a;
+    --sombra:0 8px 24px -10px rgba(29,36,32,0.18);--radio:16px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  button{font-family:inherit;cursor:pointer;}
+  .btn{
+    border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:.9rem;
+    background:var(--verde);color:#fff;transition:transform .15s ease,opacity .15s;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+  .btn.secundario{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  .btn.peligro{background:var(--rojo);}
+  .btn.oro{background:var(--oro);}
+  input,textarea{
+    font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-size:.92rem;width:100%;background:#fff;color:var(--ink);
+  }
+  label{font-size:.78rem;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:5px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px;}
+
+  /* LOGIN */
+  #login-view{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #login-view .card{max-width:380px;width:100%;text-align:center;}
+  #login-view h1{font-size:1.6rem;margin-bottom:6px;}
+  #login-view p{color:var(--ink-soft);font-size:.9rem;margin:0 0 20px;}
+  #login-view .campo{margin-bottom:14px;text-align:left;}
+  #login-error{color:var(--rojo);font-size:.85rem;margin-top:10px;min-height:1em;}
+
+  /* SHELL */
+  #app-view{display:none;}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;background:#fff;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .topbar h1{font-size:1.15rem;}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px;}
+
+  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px;}
+  .stat{padding:18px;}
+  .stat .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;font-weight:800;color:var(--ink-soft);}
+  .stat .valor{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-top:4px;}
+
+  section.bloque{margin-bottom:26px;}
+  section.bloque h2{font-size:1.2rem;margin-bottom:14px;}
+
+  .fila-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+
+  .campos-premio{display:grid;gap:12px;margin-bottom:14px;}
+  .galeria-admin{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+  .foto-item{position:relative;width:84px;height:84px;}
+  .foto-item img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
+  .foto-item button{
+    position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;
+    background:var(--rojo);color:#fff;border:2px solid #fff;font-size:.7rem;line-height:1;padding:0;
+  }
+
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;}
+  .casillero{
+    aspect-ratio:1/1;border-radius:8px;background:#fdfdfb;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;
+    transition:background .2s;
+  }
+  .casillero.vendido{background:var(--verde-suave);border-color:#bcdbc7;color:var(--verde);cursor:pointer;}
+  .casillero.vendido:hover{background:#cfe9d9;}
+
+  .links-lista{display:flex;flex-direction:column;gap:10px;}
+  .link-item{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:.85rem;
+  }
+  .link-item .url{font-family:monospace;font-size:.72rem;color:var(--ink-soft);word-break:break-all;}
+  .badge{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+  .badge.ok{background:var(--verde-suave);color:var(--verde);}
+  .badge.no{background:#f4e4e2;color:var(--rojo);}
+
+  .historial-item{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+  .historial-item h3{font-size:1rem;}
+  .historial-item .meta{color:var(--ink-soft);font-size:.82rem;margin-top:4px;}
+
+  /* MODAL */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(20,22,18,.55);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:60;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:var(--sombra);}
+  .modal h3{margin-bottom:14px;}
+  .modal .campo{margin-bottom:12px;}
+  .modal .acciones{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+  .comprobante-link{color:var(--verde);font-weight:700;font-size:.85rem;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:.85rem;
+    box-shadow:var(--sombra);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:80;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  @media(max-width:640px){
+    .tablero{gap:4px;}
+    .casillero{font-size:.62rem;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-view">
+  <div class="card">
+    <h1>Panel Sorteos Eros</h1>
+    <p>Acceso exclusivo para el administrador</p>
+    <div class="campo"><label>Correo</label><input id="login-email" type="email" placeholder="tucorreo@ejemplo.com"></div>
+    <div class="campo"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••"></div>
+    <button class="btn" id="btn-login" style="width:100%">Ingresar</button>
+    <p id="login-error"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-view">
+  <div class="topbar">
+    <h1>Sorteos Eros · Admin</h1>
+    <button class="btn secundario" id="btn-logout">Cerrar sesión</button>
+  </div>
+
+  <div class="wrap">
+
+    <!-- DASHBOARD -->
+    <section class="grid-stats">
+      <div class="card stat"><div class="eyebrow">Visitas</div><div class="valor" id="s-visitas">–</div></div>
+      <div class="card stat"><div class="eyebrow">Vendidos</div><div class="valor" id="s-vendidos">–</div></div>
+      <div class="card stat"><div class="eyebrow">Disponibles</div><div class="valor" id="s-disponibles">–</div></div>
+      <div class="card stat"><div class="eyebrow">% Vendido</div><div class="valor" id="s-porcentaje">–</div></div>
+      <div class="card stat"><div class="eyebrow">Estado</div><div class="valor" id="s-estado" style="font-size:1.1rem">–</div></div>
+      <div class="card stat"><div class="eyebrow">Último ganador</div><div class="valor" id="s-ganador" style="font-size:1.1rem">–</div></div>
+    </section>
+
+    <!-- PREMIO -->
+    <section class="bloque card">
+      <h2>Premio</h2>
+      <div class="campos-premio">
+        <div><label>Nombre del premio</label><input id="premio-nombre"></div>
+        <div><label>Descripción</label><textarea id="premio-desc" rows="3"></textarea></div>
+      </div>
+      <button class="btn secundario" id="btn-guardar-premio">Guardar premio</button>
+
+      <div style="margin-top:18px">
+        <label>Fotos</label>
+        <input type="file" id="input-foto" accept="image/*">
+        <div class="galeria-admin" id="galeria-admin"></div>
+      </div>
+    </section>
+
+    <!-- ACCIONES DEL SORTEO -->
+    <section class="bloque card">
+      <h2>Sorteo</h2>
+      <div class="fila-acciones" style="margin-top:14px">
+        <button class="btn oro" id="btn-generar-link">Generar link</button>
+        <button class="btn" id="btn-sortear" disabled>Sortear</button>
+        <button class="btn peligro" id="btn-nuevo-sorteo" disabled>Nuevo sorteo</button>
+      </div>
+      <div id="links-lista" class="links-lista"></div>
+    </section>
+
+    <!-- TABLERO -->
+    <section class="bloque card">
+      <h2>Tablero</h2>
+      <p style="color:var(--ink-soft);font-size:.85rem;margin:8px 0 16px">Tocá un número vendido para ver o editar los datos del comprador.</p>
+      <div class="tablero" id="tablero"></div>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="bloque card">
+      <h2>Historial de sorteos</h2>
+      <div id="historial"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- MODAL: datos del comprador -->
+<div class="modal-bg" id="modal-comprador">
+  <div class="modal">
+    <h3>Número <span id="mc-numero"></span></h3>
+    <div class="campo"><label>Nombre completo</label><input id="mc-nombre"></div>
+    <div class="campo"><label>Correo</label><input id="mc-correo"></div>
+    <div class="campo"><label>DNI</label><input id="mc-dni"></div>
+    <div class="campo"><label>Teléfono</label><input id="mc-telefono"></div>
+    <div class="campo"><label>Comprobante</label><br><a href="#" target="_blank" class="comprobante-link" id="mc-comprobante">Ver comprobante</a></div>
+    <div class="acciones">
+      <button class="btn secundario" id="mc-cerrar">Cerrar</button>
+      <button class="btn" id="mc-guardar">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: generar link -->
+<div class="modal-bg" id="modal-link">
+  <div class="modal">
+    <h3>Generar enlace de registro</h3>
+    <div class="campo">
+      <label>¿Cuántos números podrá elegir este comprador?</label>
+      <input id="gl-cantidad" type="number" min="1" max="100" value="1">
+    </div>
+    <p style="color:var(--ink-soft);font-size:.82rem">El enlace caduca a las 24 horas o al completar esa cantidad de números, lo que ocurra primero.</p>
+    <div class="acciones">
+      <button class="btn secundario" id="gl-cancelar">Cancelar</button>
+      <button class="btn oro" id="gl-crear">Crear enlace</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let sorteoActual = null;
+let numerosActuales = [];
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+// ---------- LOGIN ----------
+document.getElementById('btn-login').addEventListener('click', async ()=>{
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  document.getElementById('login-error').textContent = error ? 'Correo o contraseña incorrectos.' : '';
+  if(!error) mostrarApp();
+});
+
+document.getElementById('btn-logout').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  location.reload();
+});
+
+async function chequearSesion(){
+  const { data } = await sb.auth.getSession();
+  if(data.session) mostrarApp();
+}
+
+function mostrarApp(){
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('app-view').style.display = 'block';
+  cargarTodo();
+}
+
+// ---------- CARGA GENERAL ----------
+async function cargarTodo(){
+  const { data: config } = await sb.from('config').select('*').eq('id',1).single();
+  if(config) document.getElementById('s-visitas').textContent = config.visitas;
+
+  const { data: sorteo } = await sb.from('sorteos')
+    .select('*').in('estado',['activo','en_curso']).order('created_at',{ascending:false}).limit(1).maybeSingle();
+  sorteoActual = sorteo;
+
+  if(sorteoActual){
+    document.getElementById('premio-nombre').value = sorteoActual.premio_nombre || '';
+    document.getElementById('premio-desc').value = sorteoActual.premio_descripcion || '';
+    document.getElementById('s-estado').textContent = sorteoActual.estado;
+    document.getElementById('s-ganador').textContent = sorteoActual.ganador_numero
+      ? `#${sorteoActual.ganador_numero} · ${sorteoActual.ganador_nombre||''}` : '—';
+
+    await cargarNumeros();
+    await cargarFotos();
+    await cargarLinks();
+    actualizarBotones();
+  }
+  await cargarHistorial();
+}
+
+async function cargarNumeros(){
+  const { data } = await sb.from('numeros').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
+  numerosActuales = data || [];
+  pintarTablero();
+  const vendidos = numerosActuales.filter(n=>n.vendido).length;
+  document.getElementById('s-vendidos').textContent = vendidos;
+  document.getElementById('s-disponibles').textContent = 100 - vendidos;
+  document.getElementById('s-porcentaje').textContent = vendidos + '%';
+}
+
+function pintarTablero(){
+  const tablero = document.getElementById('tablero');
+  tablero.innerHTML = '';
+  numerosActuales.forEach(n=>{
+    const div = document.createElement('div');
+    div.className = 'casillero' + (n.vendido ? ' vendido' : '');
+    div.textContent = n.numero;
+    if(n.vendido){
+      div.addEventListener('click', ()=> abrirModalComprador(n));
+    }
+    tablero.appendChild(div);
+  });
+}
+
+function actualizarBotones(){
+  const vendidos = numerosActuales.filter(n=>n.vendido).length;
+  document.getElementById('btn-sortear').disabled = !(vendidos===100 && sorteoActual.estado==='activo');
+  document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
+}
+
+// ---------- PREMIO ----------
+document.getElementById('btn-guardar-premio').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('premio-nombre').value.trim();
+  const desc = document.getElementById('premio-desc').value.trim();
+  const { error } = await sb.from('sorteos').update({ premio_nombre: nombre, premio_descripcion: desc }).eq('id', sorteoActual.id);
+  toast(error ? 'No se pudo guardar' : 'Premio actualizado');
+});
+
+document.getElementById('input-foto').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const path = `${sorteoActual.id}/${Date.now()}-${file.name}`;
+  const { error: upErr } = await sb.storage.from('premios').upload(path, file);
+  if(upErr){ toast('No se pudo subir la foto'); return; }
+  const { data: pub } = sb.storage.from('premios').getPublicUrl(path);
+  await sb.from('premio_fotos').insert({ sorteo_id: sorteoActual.id, url: pub.publicUrl });
+  toast('Foto agregada');
+  await cargarFotos();
+  e.target.value = '';
+});
+
+async function cargarFotos(){
+  const cont = document.getElementById('galeria-admin');
+  cont.innerHTML = '';
+  const { data } = await sb.from('premio_fotos').select('*').eq('sorteo_id', sorteoActual.id).order('orden');
+  (data||[]).forEach(f=>{
+    const item = document.createElement('div');
+    item.className = 'foto-item';
+    item.innerHTML = `<img src="${f.url}"><button data-id="${f.id}">&times;</button>`;
+    item.querySelector('button').addEventListener('click', async ()=>{
+      await sb.from('premio_fotos').delete().eq('id', f.id);
+      cargarFotos();
+    });
+    cont.appendChild(item);
+  });
+}
+
+// ---------- MODAL COMPRADOR ----------
+let numeroModalActual = null;
+function abrirModalComprador(n){
+  numeroModalActual = n;
+  document.getElementById('mc-numero').textContent = '#'+n.numero;
+  document.getElementById('mc-nombre').value = n.nombre_completo || '';
+  document.getElementById('mc-correo').value = n.correo || '';
+  document.getElementById('mc-dni').value = n.dni || '';
+  document.getElementById('mc-telefono').value = n.telefono || '';
+  const link = document.getElementById('mc-comprobante');
+  if(n.comprobante_url){
+    link.style.display='inline'; link.href = n.comprobante_url;
+  } else {
+    link.style.display='none';
+  }
+  document.getElementById('modal-comprador').classList.add('show');
+}
+document.getElementById('mc-cerrar').addEventListener('click', ()=> document.getElementById('modal-comprador').classList.remove('show'));
+document.getElementById('mc-guardar').addEventListener('click', async ()=>{
+  const { error } = await sb.from('numeros').update({
+    nombre_completo: document.getElementById('mc-nombre').value.trim(),
+    correo: document.getElementById('mc-correo').value.trim(),
+    dni: document.getElementById('mc-dni').value.trim(),
+    telefono: document.getElementById('mc-telefono').value.trim(),
+  }).eq('id', numeroModalActual.id);
+  toast(error ? 'No se pudo guardar' : 'Datos actualizados');
+  document.getElementById('modal-comprador').classList.remove('show');
+  await cargarNumeros();
+});
+
+// ---------- GENERAR LINK ----------
+document.getElementById('btn-generar-link').addEventListener('click', ()=>{
+  document.getElementById('modal-link').classList.add('show');
+});
+document.getElementById('gl-cancelar').addEventListener('click', ()=>{
+  document.getElementById('modal-link').classList.remove('show');
+});
+document.getElementById('gl-crear').addEventListener('click', async ()=>{
+  const cantidad = parseInt(document.getElementById('gl-cantidad').value, 10);
+  if(!cantidad || cantidad < 1){ toast('Cantidad inválida'); return; }
+  const { data, error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
+  document.getElementById('modal-link').classList.remove('show');
+  if(error){ toast('No se pudo generar el link'); return; }
+  toast('Enlace generado');
+  cargarLinks();
+});
+
+async function cargarLinks(){
+  const cont = document.getElementById('links-lista');
+  const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).order('creado_at',{ascending:false});
+  cont.innerHTML = '';
+  (data||[]).forEach(l=>{
+    const url = `${location.origin}${location.pathname.replace('admin.html','registro.html')}?token=${l.token}`;
+    const vigente = l.activo && new Date(l.expira_at) > new Date();
+    const item = document.createElement('div');
+    item.className = 'link-item';
+    item.innerHTML = `
+      <div>
+        <span class="badge ${vigente?'ok':'no'}">${vigente?'Vigente':'Cerrado'}</span>
+        <div class="url">${url}</div>
+        <div style="color:var(--ink-soft);font-size:.78rem;margin-top:2px">
+          Usados ${l.cantidad_usada}/${l.cantidad_permitida} · expira ${new Date(l.expira_at).toLocaleString()}
+        </div>
+      </div>
+      <button class="btn secundario" data-url="${url}">Copiar</button>
+    `;
+    item.querySelector('button').addEventListener('click', (e)=>{
+      navigator.clipboard.writeText(e.target.dataset.url);
+      toast('Enlace copiado');
+    });
+    cont.appendChild(item);
+  });
+}
+
+// ---------- SORTEAR ----------
+document.getElementById('btn-sortear').addEventListener('click', async ()=>{
+  if(!confirm('¿Realizar el sorteo ahora? Esta acción activa la animación pública.')) return;
+  const { data, error } = await sb.rpc('realizar_sorteo', { p_sorteo_id: sorteoActual.id });
+  if(error){ toast('No se pudo sortear: '+error.message); return; }
+  toast(`Ganador: #${data.numero} · ${data.nombre||''}`);
+  await cargarTodo();
+});
+
+// ---------- NUEVO SORTEO ----------
+document.getElementById('btn-nuevo-sorteo').addEventListener('click', async ()=>{
+  if(!confirm('¿Está seguro? Se borrarán los compradores, comprobantes y el ganador actual para empezar un sorteo nuevo. El historial se conserva.')) return;
+  const { error } = await sb.rpc('nuevo_sorteo');
+  if(error){ toast('No se pudo iniciar el nuevo sorteo'); return; }
+  toast('Nuevo sorteo iniciado');
+  await cargarTodo();
+});
+
+// ---------- HISTORIAL ----------
+async function cargarHistorial(){
+  const cont = document.getElementById('historial');
+  const { data } = await sb.from('sorteos').select('*').eq('estado','finalizado').order('fecha_sorteo',{ascending:false});
+  cont.innerHTML = '';
+  if(!data || data.length===0){
+    cont.innerHTML = '<p style="color:var(--ink-soft);font-size:.88rem">Todavía no hay sorteos finalizados.</p>';
+    return;
+  }
+  data.forEach(s=>{
+    const div = document.createElement('div');
+    div.className = 'historial-item';
+    div.innerHTML = `
+      <h3>${s.premio_nombre || 'Premio sorpresa'}</h3>
+      <div class="meta">
+        ${s.fecha_sorteo ? new Date(s.fecha_sorteo).toLocaleDateString() : 'Sin fecha'} ·
+        Ganador: ${s.ganador_numero ? '#'+s.ganador_numero+' · '+(s.ganador_nombre||'') : '—'}
+      </div>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+chequearSesion();
+</script>
+</body>
+</html>

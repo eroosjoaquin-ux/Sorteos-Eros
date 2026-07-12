@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin · Sorteos Eros</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -10,112 +10,125 @@
 <style>
   :root{
     --bg:#f3f2ee;--panel:#fff;--ink:#1d2420;--ink-soft:#636b65;--line:#e3e0d6;
-    --verde:#2f6f4f;--verde-suave:#e2f0e6;--oro:#b8901f;--rojo:#b3423a;
-    --sombra:0 8px 24px -10px rgba(29,36,32,0.18);--radio:16px;
+    --verde:#2f6f4f;--verde-suave:#e2f0e6;--oro:#b8901f;--rojo:#b3423a;--azul:#2d5fa8;--azul-suave:#e3ecf7;
+    --sombra:0 6px 18px -8px rgba(29,36,32,0.18);--radio:14px;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;}
   h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
   button{font-family:inherit;cursor:pointer;}
   .btn{
-    border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:.9rem;
-    background:var(--verde);color:#fff;transition:transform .15s ease,opacity .15s;
+    border:none;border-radius:9px;padding:9px 15px;font-weight:700;font-size:.84rem;
+    background:var(--verde);color:#fff;transition:transform .15s ease,opacity .15s;flex-shrink:0;
   }
   .btn:hover{transform:translateY(-1px);}
   .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
   .btn.secundario{background:#fff;color:var(--ink);border:1px solid var(--line);}
   .btn.peligro{background:var(--rojo);}
   .btn.oro{background:var(--oro);}
+  .btn.chico{padding:6px 10px;font-size:.74rem;}
   input,textarea{
-    font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
-    font-size:.92rem;width:100%;background:#fff;color:var(--ink);
+    font-family:inherit;border:1px solid var(--line);border-radius:9px;padding:8px 11px;
+    font-size:.88rem;width:100%;background:#fff;color:var(--ink);
   }
-  label{font-size:.78rem;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:5px;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:16px;}
+  label{font-size:.72rem;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:14px;}
 
-  /* LOGIN */
-  #login-view{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-  #login-view .card{max-width:380px;width:100%;text-align:center;}
-  #login-view h1{font-size:1.6rem;margin-bottom:6px;}
-  #login-view p{color:var(--ink-soft);font-size:.9rem;margin:0 0 20px;}
-  #login-view .campo{margin-bottom:14px;text-align:left;}
-  #login-error{color:var(--rojo);font-size:.85rem;margin-top:10px;min-height:1em;}
+  /* ---------- LOGIN ---------- */
+  #login-view{height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  #login-view .card{max-width:360px;width:100%;text-align:center;}
+  #login-view h1{font-size:1.4rem;margin-bottom:6px;}
+  #login-view p{color:var(--ink-soft);font-size:.85rem;margin:0 0 16px;}
+  #login-view .campo{margin-bottom:12px;text-align:left;}
+  #login-error{color:var(--rojo);font-size:.82rem;margin-top:8px;min-height:1em;}
 
-  /* SHELL */
-  #app-view{display:none;}
+  /* ---------- APP SHELL (sin scroll de página, todo vive en 100dvh) ---------- */
+  #app-view{display:none;height:100dvh;height:100vh;flex-direction:column;}
   .topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:12px 18px;background:#fff;border-bottom:1px solid var(--line);
-    position:sticky;top:0;z-index:20;
+    flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
   }
-  .topbar h1{font-size:1.05rem;}
-  .wrap{max-width:1100px;margin:0 auto;padding:16px;}
+  .topbar h1{font-size:1rem;}
+  .tabs{
+    flex:0 0 auto;display:flex;gap:4px;padding:6px 12px;background:#fff;border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  .tab-btn{
+    border:none;background:transparent;padding:7px 12px;border-radius:8px;font-weight:700;
+    font-size:.78rem;color:var(--ink-soft);white-space:nowrap;
+  }
+  .tab-btn.activo{background:var(--verde-suave);color:var(--verde);}
+  .tab-content{flex:1 1 auto;min-height:0;padding:12px;overflow:hidden;}
+  .panel{height:100%;overflow-y:auto;display:none;}
+  .panel.activo{display:block;}
 
-  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
-  .stat{padding:12px 14px;}
-  .stat .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;font-weight:800;color:var(--ink-soft);}
-  .stat .valor{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:700;margin-top:2px;}
+  /* ---------- DASHBOARD ---------- */
+  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;}
+  .stat{padding:10px 12px;}
+  .stat .eyebrow{text-transform:uppercase;letter-spacing:.06em;font-size:.6rem;font-weight:800;color:var(--ink-soft);}
+  .stat .valor{font-family:'Fraunces',serif;font-size:1.25rem;font-weight:700;margin-top:2px;}
 
-  section.bloque{margin-bottom:16px;}
-  section.bloque h2{font-size:1.05rem;margin-bottom:10px;}
+  .avatar-editor{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .avatar-preview{
+    width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--line);flex-shrink:0;
+  }
 
-  .fila-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  section.bloque{margin-bottom:14px;}
+  section.bloque h2{font-size:1rem;margin-bottom:8px;}
+  .fila-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .campos-premio{display:grid;gap:8px;margin-bottom:8px;}
+  .campos-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:520px){.campos-2col{grid-template-columns:1fr;}}
 
-  .campos-premio{display:grid;gap:10px;margin-bottom:10px;}
-  .galeria-admin{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
-  .foto-item{position:relative;width:84px;height:84px;}
-  .foto-item img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
+  .galeria-admin{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .foto-item{position:relative;width:64px;height:64px;}
+  .foto-item img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
   .foto-item button{
-    position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;
-    background:var(--rojo);color:#fff;border:2px solid #fff;font-size:.7rem;line-height:1;padding:0;
+    position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;
+    background:var(--rojo);color:#fff;border:2px solid #fff;font-size:.65rem;line-height:1;padding:0;
   }
 
-  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;}
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;}
   .casillero{
-    aspect-ratio:1/1;border-radius:7px;background:#fdfdfb;border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.7rem;
-    transition:background .2s;
+    aspect-ratio:1/1;border-radius:6px;background:#fdfdfb;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.66rem;
   }
   .casillero.vendido{background:var(--verde-suave);border-color:#bcdbc7;color:var(--verde);cursor:pointer;}
   .casillero.vendido:hover{background:#cfe9d9;}
 
-  .links-lista{display:flex;flex-direction:column;gap:8px;}
-  .link-item{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
-    padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:.82rem;
+  .links-lista,.solicitudes-lista,.historial-lista{display:flex;flex-direction:column;gap:7px;}
+  .item-fila{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:.78rem;
   }
-  .link-item .url{font-family:monospace;font-size:.72rem;color:var(--ink-soft);word-break:break-all;}
-  .badge{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+  .item-fila .url{font-family:monospace;font-size:.68rem;color:var(--ink-soft);word-break:break-all;}
+  .badge{font-size:.62rem;font-weight:800;padding:3px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0;}
   .badge.ok{background:var(--verde-suave);color:var(--verde);}
   .badge.no{background:#f4e4e2;color:var(--rojo);}
+  .badge.espera{background:#fdf1da;color:var(--oro);}
+  .badge.conflicto{background:var(--azul-suave);color:var(--azul);}
 
-  .historial-item{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
-  .historial-item h3{font-size:1rem;}
-  .historial-item .meta{color:var(--ink-soft);font-size:.82rem;margin-top:4px;}
+  .historial-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .historial-item h3{font-size:.92rem;}
+  .historial-item .meta{color:var(--ink-soft);font-size:.76rem;margin-top:3px;}
 
-  /* MODAL */
-  .modal-bg{
-    position:fixed;inset:0;background:rgba(20,22,18,.55);display:none;
-    align-items:center;justify-content:center;padding:20px;z-index:60;
-  }
+  /* ---------- MODAL ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,22,18,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:60;}
   .modal-bg.show{display:flex;}
-  .modal{background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:var(--sombra);}
-  .modal h3{margin-bottom:14px;}
-  .modal .campo{margin-bottom:12px;}
-  .modal .acciones{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
-  .comprobante-link{color:var(--verde);font-weight:700;font-size:.85rem;}
+  .modal{background:#fff;border-radius:14px;padding:20px;max-width:400px;width:100%;box-shadow:var(--sombra);max-height:90vh;overflow-y:auto;}
+  .modal h3{margin-bottom:12px;}
+  .modal .campo{margin-bottom:10px;}
+  .modal .acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+  .comprobante-link{color:var(--verde);font-weight:700;font-size:.82rem;}
 
   .toast{
-    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
-    background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:.85rem;
+    position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:.82rem;
     box-shadow:var(--sombra);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:80;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
-
-  @media(max-width:640px){
-    .tablero{gap:4px;}
-    .casillero{font-size:.62rem;}
-  }
+  .ayuda{color:var(--ink-soft);font-size:.78rem;margin:4px 0 10px;}
 </style>
 </head>
 <body>
@@ -136,59 +149,109 @@
 <div id="app-view">
   <div class="topbar">
     <h1>Sorteos Eros · Admin</h1>
-    <button class="btn secundario" id="btn-logout">Cerrar sesión</button>
+    <button class="btn secundario chico" id="btn-logout">Salir</button>
   </div>
 
-  <div class="wrap">
+  <div class="tabs">
+    <button class="tab-btn activo" data-tab="dashboard">📊 Panel</button>
+    <button class="tab-btn" data-tab="premio">🎁 Premio</button>
+    <button class="tab-btn" data-tab="pagos">💳 Pagos</button>
+    <button class="tab-btn" data-tab="sorteo">🎲 Sorteo</button>
+    <button class="tab-btn" data-tab="tablero">🔢 Tablero</button>
+    <button class="tab-btn" data-tab="historial">🏆 Historial</button>
+  </div>
+
+  <div class="tab-content">
 
     <!-- DASHBOARD -->
-    <section class="grid-stats">
-      <div class="card stat"><div class="eyebrow">Visitas</div><div class="valor" id="s-visitas">–</div></div>
-      <div class="card stat"><div class="eyebrow">Vendidos</div><div class="valor" id="s-vendidos">–</div></div>
-      <div class="card stat"><div class="eyebrow">Disponibles</div><div class="valor" id="s-disponibles">–</div></div>
-      <div class="card stat"><div class="eyebrow">% Vendido</div><div class="valor" id="s-porcentaje">–</div></div>
-      <div class="card stat"><div class="eyebrow">Estado</div><div class="valor" id="s-estado" style="font-size:1.1rem">–</div></div>
-      <div class="card stat"><div class="eyebrow">Último ganador</div><div class="valor" id="s-ganador" style="font-size:1.1rem">–</div></div>
+    <section class="panel activo" data-panel="dashboard">
+      <div class="grid-stats">
+        <div class="card stat"><div class="eyebrow">Visitas</div><div class="valor" id="s-visitas">–</div></div>
+        <div class="card stat"><div class="eyebrow">Vendidos</div><div class="valor" id="s-vendidos">–</div></div>
+        <div class="card stat"><div class="eyebrow">Disponibles</div><div class="valor" id="s-disponibles">–</div></div>
+        <div class="card stat"><div class="eyebrow">% Vendido</div><div class="valor" id="s-porcentaje">–</div></div>
+        <div class="card stat"><div class="eyebrow">Estado</div><div class="valor" id="s-estado" style="font-size:.95rem">–</div></div>
+        <div class="card stat"><div class="eyebrow">Último ganador</div><div class="valor" id="s-ganador" style="font-size:.95rem">–</div></div>
+      </div>
+
+      <div class="card bloque">
+        <h2>Foto de perfil pública</h2>
+        <p class="ayuda">Es la foto circular que aparece arriba de todo en index.html.</p>
+        <div class="avatar-editor">
+          <img id="avatar-preview" class="avatar-preview" src="foto-perfil.jpg" alt="Foto actual">
+          <div>
+            <input type="file" id="input-avatar" accept="image/*">
+            <p class="ayuda" style="margin:6px 0 0">Se actualiza al instante en la web pública.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- PREMIO -->
-    <section class="bloque card">
-      <h2>Premio</h2>
-      <div class="campos-premio">
-        <div><label>Nombre del premio</label><input id="premio-nombre"></div>
-        <div><label>Descripción</label><textarea id="premio-desc" rows="3"></textarea></div>
-      </div>
-      <button class="btn secundario" id="btn-guardar-premio">Guardar premio</button>
-
-      <div style="margin-top:18px">
-        <label>Fotos</label>
-        <input type="file" id="input-foto" accept="image/*">
-        <div class="galeria-admin" id="galeria-admin"></div>
+    <section class="panel" data-panel="premio">
+      <div class="card bloque">
+        <h2>Premio</h2>
+        <div class="campos-premio">
+          <div><label>Nombre del premio</label><input id="premio-nombre"></div>
+          <div><label>Descripción</label><textarea id="premio-desc" rows="3"></textarea></div>
+        </div>
+        <button class="btn secundario chico" id="btn-guardar-premio">Guardar premio</button>
+        <div style="margin-top:14px">
+          <label>Fotos</label>
+          <input type="file" id="input-foto" accept="image/*">
+          <div class="galeria-admin" id="galeria-admin"></div>
+        </div>
       </div>
     </section>
 
-    <!-- ACCIONES DEL SORTEO -->
-    <section class="bloque card">
-      <h2>Sorteo</h2>
-      <div class="fila-acciones" style="margin-top:14px">
-        <button class="btn oro" id="btn-generar-link">Generar link</button>
-        <button class="btn" id="btn-sortear" disabled>Sortear</button>
-        <button class="btn peligro" id="btn-nuevo-sorteo" disabled>Nuevo sorteo</button>
+    <!-- PAGOS -->
+    <section class="panel" data-panel="pagos">
+      <div class="card bloque">
+        <h2>Precio por número</h2>
+        <p class="ayuda">Se usa en comprar.html para calcular el total a pagar con Mercado Pago.</p>
+        <div class="campos-2col">
+          <div><label>Precio (ARS)</label><input id="precio-numero" type="number" min="0" step="1"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn chico" id="btn-guardar-precio" style="width:100%">Guardar precio</button></div>
+        </div>
       </div>
-      <div id="links-lista" class="links-lista"></div>
+
+      <div class="card bloque">
+        <h2>Solicitudes de compra online</h2>
+        <p class="ayuda">Se aprueban solas cuando Mercado Pago confirma el pago. Acá solo las mirás / resolvés conflictos.</p>
+        <div class="solicitudes-lista" id="solicitudes-lista"></div>
+      </div>
+    </section>
+
+    <!-- SORTEO -->
+    <section class="panel" data-panel="sorteo">
+      <div class="card bloque">
+        <h2>Enlaces manuales</h2>
+        <div class="fila-acciones">
+          <button class="btn oro chico" id="btn-generar-link">Generar link</button>
+        </div>
+        <div id="links-lista" class="links-lista"></div>
+      </div>
+
+      <div class="card bloque">
+        <h2>Acciones del sorteo</h2>
+        <div class="fila-acciones">
+          <button class="btn chico" id="btn-sortear">Sortear</button>
+          <button class="btn peligro chico" id="btn-nuevo-sorteo">Nuevo sorteo</button>
+        </div>
+      </div>
     </section>
 
     <!-- TABLERO -->
-    <section class="bloque card">
-      <h2>Tablero</h2>
-      <p style="color:var(--ink-soft);font-size:.85rem;margin:8px 0 16px">Tocá un número vendido para ver o editar los datos del comprador.</p>
-      <div class="tablero" id="tablero"></div>
+    <section class="panel" data-panel="tablero">
+      <div class="card">
+        <p class="ayuda" style="margin-top:0">Tocá un número vendido para ver o editar los datos del comprador.</p>
+        <div class="tablero" id="tablero"></div>
+      </div>
     </section>
 
     <!-- HISTORIAL -->
-    <section class="bloque card">
-      <h2>Historial de sorteos</h2>
-      <div id="historial"></div>
+    <section class="panel" data-panel="historial">
+      <div class="card" id="historial"></div>
     </section>
 
   </div>
@@ -204,8 +267,8 @@
     <div class="campo"><label>Teléfono</label><input id="mc-telefono"></div>
     <div class="campo"><label>Comprobante</label><br><a href="#" target="_blank" class="comprobante-link" id="mc-comprobante">Ver comprobante</a></div>
     <div class="acciones">
-      <button class="btn secundario" id="mc-cerrar">Cerrar</button>
-      <button class="btn" id="mc-guardar">Guardar cambios</button>
+      <button class="btn secundario chico" id="mc-cerrar">Cerrar</button>
+      <button class="btn chico" id="mc-guardar">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -218,10 +281,10 @@
       <label>¿Cuántos números podrá elegir este comprador?</label>
       <input id="gl-cantidad" type="number" min="1" max="100" value="1">
     </div>
-    <p style="color:var(--ink-soft);font-size:.82rem">El enlace caduca a las 24 horas o al completar esa cantidad de números, lo que ocurra primero.</p>
+    <p class="ayuda">El enlace caduca a las 24 horas o al completar esa cantidad de números, lo que ocurra primero.</p>
     <div class="acciones">
-      <button class="btn secundario" id="gl-cancelar">Cancelar</button>
-      <button class="btn oro" id="gl-crear">Crear enlace</button>
+      <button class="btn secundario chico" id="gl-cancelar">Cancelar</button>
+      <button class="btn oro chico" id="gl-crear">Crear enlace</button>
     </div>
   </div>
 </div>
@@ -242,6 +305,16 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'), 2600);
 }
 
+// ---------- TABS ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('activo'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('activo'));
+    btn.classList.add('activo');
+    document.querySelector(`.panel[data-panel="${btn.dataset.tab}"]`).classList.add('activo');
+  });
+});
+
 // ---------- LOGIN ----------
 document.getElementById('btn-login').addEventListener('click', async ()=>{
   const email = document.getElementById('login-email').value.trim();
@@ -250,27 +323,28 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
   document.getElementById('login-error').textContent = error ? 'Correo o contraseña incorrectos.' : '';
   if(!error) mostrarApp();
 });
-
 document.getElementById('btn-logout').addEventListener('click', async ()=>{
   await sb.auth.signOut();
   location.reload();
 });
-
 async function chequearSesion(){
   const { data } = await sb.auth.getSession();
   if(data.session) mostrarApp();
 }
-
 function mostrarApp(){
   document.getElementById('login-view').style.display = 'none';
-  document.getElementById('app-view').style.display = 'block';
+  document.getElementById('app-view').style.display = 'flex';
   cargarTodo();
 }
 
 // ---------- CARGA GENERAL ----------
 async function cargarTodo(){
   const { data: config } = await sb.from('config').select('*').eq('id',1).single();
-  if(config) document.getElementById('s-visitas').textContent = config.visitas;
+  if(config){
+    document.getElementById('s-visitas').textContent = config.visitas;
+    document.getElementById('precio-numero').value = config.precio_numero || 0;
+    if(config.avatar_url) document.getElementById('avatar-preview').src = config.avatar_url;
+  }
 
   const { data: sorteo } = await sb.from('sorteos')
     .select('*').in('estado',['activo','en_curso']).order('created_at',{ascending:false}).limit(1).maybeSingle();
@@ -286,6 +360,7 @@ async function cargarTodo(){
     await cargarNumeros();
     await cargarFotos();
     await cargarLinks();
+    await cargarSolicitudes();
     actualizarBotones();
   }
   await cargarHistorial();
@@ -308,9 +383,7 @@ function pintarTablero(){
     const div = document.createElement('div');
     div.className = 'casillero' + (n.vendido ? ' vendido' : '');
     div.textContent = n.numero;
-    if(n.vendido){
-      div.addEventListener('click', ()=> abrirModalComprador(n));
-    }
+    if(n.vendido) div.addEventListener('click', ()=> abrirModalComprador(n));
     tablero.appendChild(div);
   });
 }
@@ -319,6 +392,64 @@ function actualizarBotones(){
   const vendidos = numerosActuales.filter(n=>n.vendido).length;
   document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
+}
+
+// ---------- AVATAR ----------
+document.getElementById('input-avatar').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const path = `perfil/${Date.now()}-${file.name}`;
+  const { error: upErr } = await sb.storage.from('premios').upload(path, file);
+  if(upErr){ toast('No se pudo subir la foto'); return; }
+  const { data: pub } = sb.storage.from('premios').getPublicUrl(path);
+  const { error } = await sb.from('config').update({ avatar_url: pub.publicUrl }).eq('id',1);
+  if(error){ toast('No se pudo guardar la foto'); return; }
+  document.getElementById('avatar-preview').src = pub.publicUrl;
+  toast('Foto de perfil actualizada');
+  e.target.value = '';
+});
+
+// ---------- PRECIO ----------
+document.getElementById('btn-guardar-precio').addEventListener('click', async ()=>{
+  const precio = parseFloat(document.getElementById('precio-numero').value);
+  if(isNaN(precio) || precio < 0){ toast('Precio inválido'); return; }
+  const { error } = await sb.from('config').update({ precio_numero: precio }).eq('id',1);
+  toast(error ? 'No se pudo guardar' : 'Precio actualizado');
+});
+
+// ---------- SOLICITUDES DE COMPRA ONLINE ----------
+async function cargarSolicitudes(){
+  const cont = document.getElementById('solicitudes-lista');
+  const { data } = await sb.from('solicitudes_compra').select('*').eq('sorteo_id', sorteoActual.id).order('creado_at',{ascending:false}).limit(30);
+  cont.innerHTML = '';
+  if(!data || data.length===0){
+    cont.innerHTML = '<p class="ayuda" style="margin:0">Todavía no hay solicitudes de compra online.</p>';
+    return;
+  }
+  const badges = { pendiente_pago:['espera','Esperando pago'], aprobada:['ok','Aprobada'], rechazada:['no','Rechazada'], expirada:['no','Expirada'], conflicto:['conflicto','Conflicto'] };
+  data.forEach(s=>{
+    const [cls, txt] = badges[s.estado] || ['no', s.estado];
+    const item = document.createElement('div');
+    item.className = 'item-fila';
+    item.innerHTML = `
+      <div>
+        <span class="badge ${cls}">${txt}</span>
+        <div style="margin-top:4px">${s.nombre_completo} · números ${s.numeros.join(', ')} · $${Number(s.monto).toLocaleString('es-AR')}</div>
+        <div class="url">${new Date(s.creado_at).toLocaleString()}</div>
+      </div>
+      ${s.estado==='conflicto' ? '<button class="btn peligro chico" data-id="'+s.id+'">Marcar resuelto</button>' : ''}
+    `;
+    const btnResolver = item.querySelector('button');
+    if(btnResolver){
+      btnResolver.addEventListener('click', async ()=>{
+        if(!confirm('¿Ya reembolsaste o resolviste este conflicto manualmente con el comprador?')) return;
+        await sb.from('solicitudes_compra').update({ estado:'rechazada' }).eq('id', s.id);
+        toast('Marcado como resuelto');
+        cargarSolicitudes();
+      });
+    }
+    cont.appendChild(item);
+  });
 }
 
 // ---------- PREMIO ----------
@@ -375,14 +506,11 @@ async function abrirModalComprador(n){
     return;
   }
   link.style.display = 'inline';
+  link.style.color = 'var(--verde)';
   link.href = '#';
   link.textContent = 'Cargando comprobante…';
-
-  // Compatibilidad: registros viejos guardaron una URL pública completa;
-  // los nuevos guardan solo el path dentro del bucket privado y acá se firma.
   if(/^https?:\/\//i.test(n.comprobante_url)){
-    link.href = n.comprobante_url;
-    link.textContent = 'Ver comprobante';
+    link.href = n.comprobante_url; link.textContent = 'Ver comprobante';
     return;
   }
   const { data, error } = await sb.storage.from('comprobantes').createSignedUrl(n.comprobante_url, 600);
@@ -390,8 +518,7 @@ async function abrirModalComprador(n){
     link.textContent = 'No se pudo cargar (revisá que exista el bucket "comprobantes")';
     link.style.color = 'var(--rojo)';
   } else {
-    link.href = data.signedUrl;
-    link.textContent = 'Ver comprobante (vence en 10 min)';
+    link.href = data.signedUrl; link.textContent = 'Ver comprobante (vence en 10 min)';
   }
 }
 document.getElementById('mc-cerrar').addEventListener('click', ()=> document.getElementById('modal-comprador').classList.remove('show'));
@@ -408,16 +535,12 @@ document.getElementById('mc-guardar').addEventListener('click', async ()=>{
 });
 
 // ---------- GENERAR LINK ----------
-document.getElementById('btn-generar-link').addEventListener('click', ()=>{
-  document.getElementById('modal-link').classList.add('show');
-});
-document.getElementById('gl-cancelar').addEventListener('click', ()=>{
-  document.getElementById('modal-link').classList.remove('show');
-});
+document.getElementById('btn-generar-link').addEventListener('click', ()=> document.getElementById('modal-link').classList.add('show'));
+document.getElementById('gl-cancelar').addEventListener('click', ()=> document.getElementById('modal-link').classList.remove('show'));
 document.getElementById('gl-crear').addEventListener('click', async ()=>{
   const cantidad = parseInt(document.getElementById('gl-cantidad').value, 10);
   if(!cantidad || cantidad < 1){ toast('Cantidad inválida'); return; }
-  const { data, error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
+  const { error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
   document.getElementById('modal-link').classList.remove('show');
   if(error){ toast('No se pudo generar el link'); return; }
   toast('Enlace generado');
@@ -432,16 +555,16 @@ async function cargarLinks(){
     const url = `${location.origin}${location.pathname.replace('admin.html','registro.html')}?token=${l.token}`;
     const vigente = l.activo && new Date(l.expira_at) > new Date();
     const item = document.createElement('div');
-    item.className = 'link-item';
+    item.className = 'item-fila';
     item.innerHTML = `
       <div>
         <span class="badge ${vigente?'ok':'no'}">${vigente?'Vigente':'Cerrado'}</span>
         <div class="url">${url}</div>
-        <div style="color:var(--ink-soft);font-size:.78rem;margin-top:2px">
+        <div style="color:var(--ink-soft);font-size:.72rem;margin-top:2px">
           Usados ${l.cantidad_usada}/${l.cantidad_permitida} · expira ${new Date(l.expira_at).toLocaleString()}
         </div>
       </div>
-      <button class="btn secundario" data-url="${url}">Copiar</button>
+      <button class="btn secundario chico" data-url="${url}">Copiar</button>
     `;
     item.querySelector('button').addEventListener('click', (e)=>{
       navigator.clipboard.writeText(e.target.dataset.url);
@@ -475,7 +598,7 @@ async function cargarHistorial(){
   const { data } = await sb.from('sorteos').select('*').eq('estado','finalizado').order('fecha_sorteo',{ascending:false});
   cont.innerHTML = '';
   if(!data || data.length===0){
-    cont.innerHTML = '<p style="color:var(--ink-soft);font-size:.88rem">Todavía no hay sorteos finalizados.</p>';
+    cont.innerHTML = '<p class="ayuda" style="margin:0">Todavía no hay sorteos finalizados.</p>';
     return;
   }
   data.forEach(s=>{

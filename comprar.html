@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprar números · Sorteos Eros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#150826;--bg-panel:#1f1040;--gold:#ffd166;--green:#00ff87;--green-dark:#00994f;
+    --pink:#ff3d81;--white:#ffffff;--ink:#1a1030;--lila-texto:#cdbfff;--rojo:#ff5c72;
+    --sombra:0 10px 30px rgba(0,0,0,.35);--radio:20px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:'Inter',sans-serif;color:#fff;
+    background:radial-gradient(circle at 15% 8%,#2a1454 0%,transparent 45%),
+      radial-gradient(circle at 85% 92%,#3a0f4f 0%,transparent 50%),var(--bg-deep);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:26px 16px 70px;}
+  h1,h2{font-family:'Baloo 2',sans-serif;margin:0;}
+  a{color:var(--gold);}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .top a{font-size:.85rem;text-decoration:none;color:var(--lila-texto);}
+  .titulo{font-size:1.7rem;font-weight:800;background:linear-gradient(90deg,var(--gold),var(--green));-webkit-background-clip:text;background-clip:text;color:transparent;}
+
+  .card{background:var(--bg-panel);border-radius:var(--radio);padding:20px;box-shadow:var(--sombra);margin-bottom:16px;}
+  .precio-banner{
+    text-align:center;padding:16px;border-radius:16px;
+    background:linear-gradient(120deg,#2a1454,#170826);border:1px solid rgba(255,209,102,.3);
+  }
+  .precio-banner .num{font-family:'Baloo 2',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);}
+  .precio-banner .label{font-size:.8rem;color:var(--lila-texto);}
+
+  .contador{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    background:linear-gradient(90deg,rgba(255,209,102,.14),rgba(0,255,135,.1));
+    border-radius:14px;padding:12px 16px;margin-bottom:14px;font-weight:700;font-size:.92rem;
+  }
+  .contador .total{font-family:'Baloo 2',sans-serif;font-size:1.3rem;color:var(--green);}
+
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;}
+  .casillero{
+    aspect-ratio:1/1;border-radius:8px;background:#fff;border:2px solid #e5ddff;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.7rem;
+    transition:transform .1s ease,background .15s ease;cursor:pointer;user-select:none;
+  }
+  .casillero.vendido{background:#e9e4f7;color:#a99bd6;cursor:not-allowed;border-color:#d9cdfb;}
+  .casillero.pendiente{background:#fff3d6;color:#b9902a;cursor:not-allowed;border-color:#ffd166;}
+  .casillero.elegido{background:linear-gradient(135deg,var(--pink),var(--gold));border-color:transparent;color:#fff;transform:scale(1.1);}
+
+  label{font-size:.78rem;font-weight:700;color:var(--lila-texto);display:block;margin-bottom:6px;}
+  input{
+    font-family:inherit;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:11px 13px;
+    font-size:.95rem;width:100%;background:#150826;color:#fff;margin-bottom:14px;
+  }
+  .btn{
+    border:none;border-radius:14px;padding:15px 20px;font-weight:800;font-size:1rem;width:100%;cursor:pointer;
+    background:linear-gradient(90deg,#00b1ea,#00d4a0);color:#04150a;font-family:'Baloo 2',sans-serif;
+    transition:transform .15s ease,opacity .2s;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .error-msg{color:var(--rojo);font-size:.85rem;margin-top:10px;min-height:1em;}
+
+  .estado-box{text-align:center;padding:30px 20px;}
+  .estado-box .icon{font-size:3rem;margin-bottom:10px;}
+  .estado-box h2{font-size:1.4rem;margin-bottom:8px;}
+  .estado-box p{color:var(--lila-texto);}
+  .spinner{
+    width:34px;height:34px;border-radius:50%;border:4px solid rgba(255,255,255,.15);
+    border-top-color:var(--gold);animation:girar 1s linear infinite;margin:0 auto 14px;
+  }
+  @keyframes girar{to{transform:rotate(360deg);}}
+
+  footer{text-align:center;color:var(--lila-texto);font-size:.78rem;padding:10px;}
+  @media(max-width:480px){.casillero{font-size:.58rem;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="titulo">Comprá tus números</div>
+    <a href="index.html">← Volver al sorteo</a>
+  </div>
+
+  <!-- VISTA: formulario de compra -->
+  <div id="vista-compra">
+    <div class="card precio-banner">
+      <div class="num" id="precio-txt">$0</div>
+      <div class="label">por número · pagás con Mercado Pago, al instante</div>
+    </div>
+
+    <div class="card">
+      <div class="contador">
+        <span id="contador-txt">0 números elegidos</span>
+        <span class="total" id="total-txt">$0</span>
+      </div>
+      <div class="tablero" id="tablero"></div>
+    </div>
+
+    <div class="card">
+      <label>Nombre completo</label>
+      <input id="f-nombre" placeholder="Nombre y apellido">
+      <label>Correo electrónico</label>
+      <input id="f-correo" type="email" placeholder="tu@correo.com">
+      <label>DNI</label>
+      <input id="f-dni" placeholder="Documento">
+      <label>Teléfono</label>
+      <input id="f-telefono" placeholder="Con código de área">
+      <p class="error-msg" id="form-error"></p>
+      <button class="btn" id="btn-pagar">Pagar con Mercado Pago</button>
+    </div>
+  </div>
+
+  <!-- VISTA: esperando confirmación -->
+  <div class="card estado-box" id="vista-esperando" style="display:none">
+    <div class="spinner"></div>
+    <h2>Confirmando tu pago…</h2>
+    <p>No cierres esta página. Puede tardar unos segundos.</p>
+  </div>
+
+  <!-- VISTA: aprobado -->
+  <div class="card estado-box" id="vista-aprobado" style="display:none">
+    <div class="icon">🎉</div>
+    <h2>¡Listo, ya sos parte del sorteo!</h2>
+    <p id="aprobado-detalle"></p>
+    <br>
+    <a class="btn" style="display:inline-block;text-decoration:none;width:auto;padding:14px 26px" href="index.html">Ver el tablero</a>
+  </div>
+
+  <!-- VISTA: rechazado / conflicto -->
+  <div class="card estado-box" id="vista-rechazado" style="display:none">
+    <div class="icon">😕</div>
+    <h2 id="rechazado-titulo">El pago no se completó</h2>
+    <p id="rechazado-detalle">Podés intentar de nuevo cuando quieras.</p>
+    <br>
+    <a class="btn" style="display:inline-block;text-decoration:none;width:auto;padding:14px 26px" href="comprar.html">Intentar de nuevo</a>
+  </div>
+</div>
+
+<footer>Sorteos Eros · pago seguro procesado por Mercado Pago</footer>
+
+<script>
+const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
+const EDGE_FN_URL = SUPABASE_URL + "/functions/v1/crear-preferencia";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MAX_NUMEROS = 10;
+let precio = 0;
+let numerosVendidos = new Set();
+let numerosPendientes = new Set();
+let seleccionados = new Set();
+
+function mostrarSolo(id){
+  ['vista-compra','vista-esperando','vista-aprobado','vista-rechazado'].forEach(v=>{
+    document.getElementById(v).style.display = (v===id) ? 'block' : 'none';
+  });
+}
+
+async function init(){
+  const params = new URLSearchParams(location.search);
+  const solicitudId = params.get('solicitud');
+  const estado = params.get('estado');
+
+  if(solicitudId){
+    // Venimos de vuelta de Mercado Pago: mostramos "confirmando" y hacemos
+    // polling hasta que el webhook (que puede tardar unos segundos) resuelva.
+    mostrarSolo('vista-esperando');
+    if(estado === 'failure'){
+      mostrarRechazado('El pago fue rechazado o cancelado.', 'Podés intentar de nuevo cuando quieras.');
+      return;
+    }
+    pollEstado(solicitudId, 0);
+    return;
+  }
+
+  await cargarFormulario();
+}
+
+async function pollEstado(id, intento){
+  const { data } = await sb.rpc('obtener_estado_solicitud', { p_id: id });
+  if(data && data.existe){
+    if(data.estado === 'aprobada'){
+      document.getElementById('aprobado-detalle').textContent =
+        `Números ${data.numeros.join(', ')} registrados a tu nombre. ¡Gracias por participar!`;
+      mostrarSolo('vista-aprobado');
+      return;
+    }
+    if(data.estado === 'rechazada'){
+      mostrarRechazado('El pago no se pudo confirmar.', 'Podés intentar de nuevo cuando quieras.');
+      return;
+    }
+    if(data.estado === 'conflicto'){
+      mostrarRechazado('¡Uy! Justo se vendieron mientras pagabas.', 'Tu pago se realizó pero alguno de esos números ya no estaba disponible. Escribinos por Instagram para resolverlo y reasignarte otros números o devolverte el pago.');
+      return;
+    }
+  }
+  if(intento > 40){ // ~2 minutos de espera máxima
+    mostrarRechazado('Esto está tardando más de lo normal.', 'Si ya pagaste, escribinos por Instagram con tu comprobante y lo resolvemos a mano.');
+    return;
+  }
+  setTimeout(()=> pollEstado(id, intento+1), 3000);
+}
+
+function mostrarRechazado(titulo, detalle){
+  document.getElementById('rechazado-titulo').textContent = titulo;
+  document.getElementById('rechazado-detalle').textContent = detalle;
+  mostrarSolo('vista-rechazado');
+}
+
+async function cargarFormulario(){
+  const { data: config } = await sb.from('config').select('precio_numero').eq('id',1).single();
+  precio = Number(config?.precio_numero || 0);
+  document.getElementById('precio-txt').textContent = '$' + precio.toLocaleString('es-AR');
+
+  const { data: sorteo } = await sb.from('sorteos').select('id').eq('estado','activo').order('created_at',{ascending:false}).limit(1).maybeSingle();
+  if(!sorteo){
+    document.getElementById('btn-pagar').disabled = true;
+    mostrarErrorForm('No hay un sorteo activo en este momento.');
+    return;
+  }
+  window.sorteoId = sorteo.id;
+
+  const { data: numeros } = await sb.from('numeros_publicos').select('numero,vendido').eq('sorteo_id', sorteo.id);
+  (numeros||[]).forEach(n=>{ if(n.vendido) numerosVendidos.add(n.numero); });
+
+  const { data: pendientes } = await sb.from('numeros_pendientes').select('numero').eq('sorteo_id', sorteo.id);
+  (pendientes||[]).forEach(p=> numerosPendientes.add(p.numero));
+
+  construirTablero();
+
+  if(precio <= 0){
+    document.getElementById('btn-pagar').disabled = true;
+    mostrarErrorForm('El organizador todavía no configuró el precio por número.');
+  }
+}
+
+function construirTablero(){
+  const tablero = document.getElementById('tablero');
+  tablero.innerHTML = '';
+  for(let n=1;n<=100;n++){
+    const div = document.createElement('div');
+    const vendido = numerosVendidos.has(n);
+    const pendiente = numerosPendientes.has(n);
+    div.className = 'casillero' + (vendido ? ' vendido' : pendiente ? ' pendiente' : '');
+    div.title = vendido ? 'Vendido' : pendiente ? 'Reservado, alguien lo está pagando ahora' : '';
+    div.textContent = n;
+    if(!vendido && !pendiente){
+      div.addEventListener('click', ()=> toggleNumero(n, div));
+    }
+    tablero.appendChild(div);
+  }
+}
+
+function toggleNumero(n, el){
+  if(seleccionados.has(n)){
+    seleccionados.delete(n); el.classList.remove('elegido');
+  } else {
+    if(seleccionados.size >= MAX_NUMEROS){
+      mostrarErrorForm(`Podés elegir hasta ${MAX_NUMEROS} números por compra.`);
+      return;
+    }
+    seleccionados.add(n); el.classList.add('elegido');
+  }
+  actualizarContador();
+}
+
+function actualizarContador(){
+  document.getElementById('contador-txt').textContent = `${seleccionados.size} número(s) elegido(s)`;
+  document.getElementById('total-txt').textContent = '$' + (seleccionados.size * precio).toLocaleString('es-AR');
+}
+
+function mostrarErrorForm(msg){ document.getElementById('form-error').textContent = msg; }
+
+document.getElementById('btn-pagar').addEventListener('click', async ()=>{
+  mostrarErrorForm('');
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const correo = document.getElementById('f-correo').value.trim();
+  const dni = document.getElementById('f-dni').value.trim();
+  const telefono = document.getElementById('f-telefono').value.trim();
+
+  if(seleccionados.size === 0){ mostrarErrorForm('Elegí al menos un número.'); return; }
+  if(!nombre || !correo || !dni || !telefono){ mostrarErrorForm('Completá todos los datos.'); return; }
+
+  const btn = document.getElementById('btn-pagar');
+  btn.disabled = true; btn.textContent = 'Generando pago…';
+
+  try{
+    const res = await fetch(EDGE_FN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numeros: Array.from(seleccionados),
+        nombre, correo, dni, telefono
+      })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo iniciar el pago.');
+    location.href = data.init_point;
+  } catch(e){
+    mostrarErrorForm(e.message);
+    btn.disabled = false; btn.textContent = 'Pagar con Mercado Pago';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

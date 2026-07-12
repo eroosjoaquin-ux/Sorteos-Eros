@@ -31,7 +31,7 @@
     font-size:.92rem;width:100%;background:#fff;color:var(--ink);
   }
   label{font-size:.78rem;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:5px;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radio);box-shadow:var(--sombra);padding:16px;}
 
   /* LOGIN */
   #login-view{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -45,23 +45,23 @@
   #app-view{display:none;}
   .topbar{
     display:flex;align-items:center;justify-content:space-between;
-    padding:16px 26px;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 18px;background:#fff;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:20;
   }
-  .topbar h1{font-size:1.15rem;}
-  .wrap{max-width:1100px;margin:0 auto;padding:26px;}
+  .topbar h1{font-size:1.05rem;}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px;}
 
-  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px;}
-  .stat{padding:18px;}
-  .stat .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;font-weight:800;color:var(--ink-soft);}
-  .stat .valor{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-top:4px;}
+  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+  .stat{padding:12px 14px;}
+  .stat .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;font-weight:800;color:var(--ink-soft);}
+  .stat .valor{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:700;margin-top:2px;}
 
-  section.bloque{margin-bottom:26px;}
-  section.bloque h2{font-size:1.2rem;margin-bottom:14px;}
+  section.bloque{margin-bottom:16px;}
+  section.bloque h2{font-size:1.05rem;margin-bottom:10px;}
 
-  .fila-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .fila-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
 
-  .campos-premio{display:grid;gap:12px;margin-bottom:14px;}
+  .campos-premio{display:grid;gap:10px;margin-bottom:10px;}
   .galeria-admin{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
   .foto-item{position:relative;width:84px;height:84px;}
   .foto-item img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
@@ -70,19 +70,19 @@
     background:var(--rojo);color:#fff;border:2px solid #fff;font-size:.7rem;line-height:1;padding:0;
   }
 
-  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;}
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;}
   .casillero{
-    aspect-ratio:1/1;border-radius:8px;background:#fdfdfb;border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;
+    aspect-ratio:1/1;border-radius:7px;background:#fdfdfb;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.7rem;
     transition:background .2s;
   }
   .casillero.vendido{background:var(--verde-suave);border-color:#bcdbc7;color:var(--verde);cursor:pointer;}
   .casillero.vendido:hover{background:#cfe9d9;}
 
-  .links-lista{display:flex;flex-direction:column;gap:10px;}
+  .links-lista{display:flex;flex-direction:column;gap:8px;}
   .link-item{
     display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
-    padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:.85rem;
+    padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:.82rem;
   }
   .link-item .url{font-family:monospace;font-size:.72rem;color:var(--ink-soft);word-break:break-all;}
   .badge{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
@@ -317,7 +317,7 @@ function pintarTablero(){
 
 function actualizarBotones(){
   const vendidos = numerosActuales.filter(n=>n.vendido).length;
-  document.getElementById('btn-sortear').disabled = !(vendidos===100 && sorteoActual.estado==='activo');
+  document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
 }
 
@@ -360,20 +360,39 @@ async function cargarFotos(){
 
 // ---------- MODAL COMPRADOR ----------
 let numeroModalActual = null;
-function abrirModalComprador(n){
+async function abrirModalComprador(n){
   numeroModalActual = n;
   document.getElementById('mc-numero').textContent = '#'+n.numero;
   document.getElementById('mc-nombre').value = n.nombre_completo || '';
   document.getElementById('mc-correo').value = n.correo || '';
   document.getElementById('mc-dni').value = n.dni || '';
   document.getElementById('mc-telefono').value = n.telefono || '';
-  const link = document.getElementById('mc-comprobante');
-  if(n.comprobante_url){
-    link.style.display='inline'; link.href = n.comprobante_url;
-  } else {
-    link.style.display='none';
-  }
   document.getElementById('modal-comprador').classList.add('show');
+
+  const link = document.getElementById('mc-comprobante');
+  if(!n.comprobante_url){
+    link.style.display = 'none';
+    return;
+  }
+  link.style.display = 'inline';
+  link.href = '#';
+  link.textContent = 'Cargando comprobante…';
+
+  // Compatibilidad: registros viejos guardaron una URL pública completa;
+  // los nuevos guardan solo el path dentro del bucket privado y acá se firma.
+  if(/^https?:\/\//i.test(n.comprobante_url)){
+    link.href = n.comprobante_url;
+    link.textContent = 'Ver comprobante';
+    return;
+  }
+  const { data, error } = await sb.storage.from('comprobantes').createSignedUrl(n.comprobante_url, 600);
+  if(error || !data){
+    link.textContent = 'No se pudo cargar (revisá que exista el bucket "comprobantes")';
+    link.style.color = 'var(--rojo)';
+  } else {
+    link.href = data.signedUrl;
+    link.textContent = 'Ver comprobante (vence en 10 min)';
+  }
 }
 document.getElementById('mc-cerrar').addEventListener('click', ()=> document.getElementById('modal-comprador').classList.remove('show'));
 document.getElementById('mc-guardar').addEventListener('click', async ()=>{
@@ -434,7 +453,7 @@ async function cargarLinks(){
 
 // ---------- SORTEAR ----------
 document.getElementById('btn-sortear').addEventListener('click', async ()=>{
-  if(!confirm('¿Realizar el sorteo ahora? Esta acción activa la animación pública.')) return;
+  if(!confirm('¿Realizar el sorteo ahora entre los números vendidos hasta el momento? Esta acción activa la animación pública.')) return;
   const { data, error } = await sb.rpc('realizar_sorteo', { p_sorteo_id: sorteoActual.id });
   if(error){ toast('No se pudo sortear: '+error.message); return; }
   toast(`Ganador: #${data.numero} · ${data.nombre||''}`);

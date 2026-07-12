@@ -7,197 +7,228 @@
 <meta name="description" content="Sorteo en vivo · 100 números · Seguí el tablero en tiempo real">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    --bg:#faf9f5;
-    --panel:#ffffff;
-    --ink:#1d2420;
-    --ink-soft:#5c6560;
-    --line:#e7e3d8;
-    --verde:#2f6f4f;
-    --verde-suave:#e2f0e6;
-    --verde-borde:#bcdbc7;
-    --oro:#b8901f;
-    --oro-suave:#faf1da;
-    --sombra:0 10px 30px -12px rgba(29,36,32,0.16);
-    --radio:18px;
+    --bg-deep:#150826;
+    --bg-panel:#1f1040;
+    --bg-panel-2:#241350;
+    --gold:#ffd166;
+    --green:#00ff87;
+    --green-dark:#00994f;
+    --pink:#ff3d81;
+    --blue1:#2f6bff;
+    --blue2:#1339a6;
+    --white:#ffffff;
+    --ink:#1a1030;
+    --lila-texto:#cdbfff;
+    --sombra:0 10px 30px rgba(0,0,0,.35);
+    --radio:22px;
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   body{
     margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--white);
     background:
-      radial-gradient(circle at 12% -10%, #eef3ea 0%, transparent 45%),
-      radial-gradient(circle at 100% 0%, #f6ede0 0%, transparent 40%),
-      var(--bg);
-    color:var(--ink);
-    font-family:'Manrope',sans-serif;
+      radial-gradient(circle at 15% 8%, #2a1454 0%, transparent 45%),
+      radial-gradient(circle at 85% 92%, #3a0f4f 0%, transparent 50%),
+      radial-gradient(circle at 50% 45%, #1c0c3a 0%, transparent 60%),
+      var(--bg-deep);
     -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:960px;margin:0 auto;padding:0 20px 80px;}
+  .wrap{max-width:920px;margin:0 auto;padding:18px 16px 70px;display:flex;flex-direction:column;gap:16px;}
 
-  /* HEADER */
-  header{padding:56px 20px 28px;text-align:center;}
-  .titulo{
-    font-family:'Fraunces',serif;
-    font-weight:600;
-    font-size:clamp(2.4rem,6vw,4rem);
-    letter-spacing:-0.01em;
-    margin:0;
-    line-height:1.02;
+  /* ---------- BRAND HEADER ---------- */
+  .brand-header{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    background:linear-gradient(120deg,#2a1454,#170826);
+    border-radius:var(--radio);padding:16px 22px;box-shadow:var(--sombra);
   }
-  .titulo em{font-style:italic;color:var(--verde);}
-  .ig-pill{
-    display:inline-flex;align-items:center;gap:8px;
-    margin-top:18px;padding:9px 18px;
-    background:var(--panel);border:1px solid var(--line);
-    border-radius:999px;text-decoration:none;color:var(--ink);
-    font-weight:600;font-size:0.92rem;box-shadow:var(--sombra);
-    transition:transform .2s ease;
+  .avatar-wrap{
+    width:66px;height:66px;border-radius:50%;flex-shrink:0;cursor:pointer;
+    padding:3px;background:conic-gradient(from 180deg,var(--gold),var(--pink),var(--green),var(--gold));
+    animation:girar 6s linear infinite;box-shadow:0 0 18px rgba(255,209,102,.5);
   }
-  .ig-pill:hover{transform:translateY(-2px);}
-  .ig-pill svg{width:18px;height:18px;flex:none;}
+  @keyframes girar{ to{ filter:hue-rotate(360deg); } }
+  .avatar-wrap img{width:100%;height:100%;object-fit:cover;border-radius:50%;border:3px solid #170826;display:block;}
+  .brand-text{flex:1;min-width:180px;}
+  .brand-title{
+    font-family:'Baloo 2',sans-serif;font-weight:800;font-size:clamp(26px,5vw,38px);
+    letter-spacing:.5px;line-height:1.05;
+    background:linear-gradient(90deg,var(--gold),var(--green));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .brand-sub{font-size:13px;color:var(--lila-texto);margin-top:2px;}
+  .brand-ig{
+    display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:7px 16px;
+    border-radius:30px;font-weight:700;font-size:13px;color:#fff;text-decoration:none;
+    background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7);
+    box-shadow:0 4px 14px rgba(238,42,123,.45);width:fit-content;transition:transform .2s ease;
+  }
+  .brand-ig:hover{transform:translateY(-2px);}
+  .brand-ig svg{width:16px;height:16px;}
 
-  /* SECCIONES GENERALES */
-  section{margin-top:44px;}
-  .card{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:var(--radio);
-    box-shadow:var(--sombra);
+  /* ---------- CARTEL DEL PREMIO (animado) ---------- */
+  .cartel{
+    position:relative;padding:22px 18px;border-radius:var(--radio);text-align:center;overflow:hidden;
+    background:linear-gradient(160deg,#2a1454,#170826);
+    box-shadow:0 0 46px rgba(255,209,102,.16), inset 0 0 40px rgba(0,0,0,.45);
   }
-  .eyebrow{
-    text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;
-    font-weight:800;color:var(--ink-soft);margin:0 0 10px;
+  .cartel::before,.cartel::after{
+    content:'';position:absolute;left:0;right:0;height:10px;
+    background-image:radial-gradient(circle, var(--gold) 42%, transparent 43%);
+    background-size:24px 10px;background-repeat:repeat-x;animation:chase .9s linear infinite;opacity:.85;
   }
+  .cartel::before{top:6px;}
+  .cartel::after{bottom:6px;animation-direction:reverse;}
+  @keyframes chase{from{background-position:0 0;}to{background-position:24px 0;}}
+  .cartel-eyebrow{
+    font-family:'Baloo 2',sans-serif;font-weight:700;font-size:13px;letter-spacing:2px;
+    color:var(--pink);text-transform:uppercase;margin-bottom:6px;text-shadow:0 0 12px rgba(255,61,129,.7);
+  }
+  .cartel-letras{display:flex;flex-wrap:wrap;justify-content:center;gap:1px;font-family:'Baloo 2',sans-serif;}
+  .cartel-letras .letra{
+    display:inline-block;font-weight:800;font-size:clamp(20px,4.4vw,36px);color:var(--gold);
+    text-shadow:0 0 16px rgba(255,209,102,.7);animation:rebote 1.4s ease-in-out infinite;
+  }
+  @keyframes rebote{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
 
-  /* PREMIO */
-  .premio{padding:28px;}
-  .premio h2{font-family:'Fraunces',serif;font-size:1.7rem;margin:0 0 8px;font-weight:600;}
-  .premio p{color:var(--ink-soft);line-height:1.6;margin:0 0 18px;}
+  /* ---------- PREMIO ---------- */
+  .premio-card{background:var(--bg-panel);border-radius:var(--radio);padding:20px;box-shadow:var(--sombra);}
+  .premio-desc{color:var(--lila-texto);font-size:.92rem;line-height:1.6;margin:0 0 14px;}
   .galeria{display:flex;gap:10px;flex-wrap:wrap;}
   .galeria img{
-    width:84px;height:84px;object-fit:cover;border-radius:12px;cursor:pointer;
-    border:1px solid var(--line);transition:transform .15s ease;
+    width:78px;height:78px;object-fit:cover;border-radius:14px;cursor:pointer;
+    border:2px solid var(--gold);box-shadow:0 0 12px rgba(255,209,102,.35);
+    transition:transform .15s ease;
   }
-  .galeria img:hover{transform:scale(1.05);}
-  .galeria .vacio{color:var(--ink-soft);font-size:.9rem;}
+  .galeria img:hover{transform:scale(1.07);}
+  .galeria .vacio{color:var(--lila-texto);font-size:.85rem;}
 
-  /* GANADOR */
-  .ganador-panel{
-    padding:38px 28px;text-align:center;position:relative;overflow:hidden;
-    background:linear-gradient(180deg,#ffffff,#fbf8f1);
+  /* ---------- MARQUESINA / GANADOR ---------- */
+  .marquee{
+    position:relative;padding:26px 18px;border-radius:var(--radio);
+    background:linear-gradient(160deg,#2a1454,#170826);
+    box-shadow:0 0 50px rgba(255,209,102,.18), inset 0 0 40px rgba(0,0,0,.5);
+    overflow:hidden;text-align:center;min-height:80px;
+    display:flex;align-items:center;justify-content:center;
   }
-  .ganador-panel.activo{border-color:var(--oro);}
-  .ganador-estado{
-    font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);
-    font-size:1.15rem;margin:0;
+  .marquee::before,.marquee::after{
+    content:'';position:absolute;left:0;right:0;height:12px;
+    background-image:radial-gradient(circle, var(--gold) 42%, transparent 43%);
+    background-size:26px 12px;background-repeat:repeat-x;animation:chase .9s linear infinite;opacity:.85;
   }
-  .ganador-resultado{display:none;}
-  .ganador-resultado.show{display:block;animation:pop .6s cubic-bezier(.2,.9,.25,1);}
-  .ganador-resultado .eyebrow{color:var(--oro);}
-  .ganador-numero{
-    font-family:'Fraunces',serif;font-weight:700;font-size:clamp(3rem,10vw,5.5rem);
-    color:var(--oro);line-height:1;margin:4px 0;
+  .marquee::before{top:8px;}
+  .marquee::after{bottom:8px;animation-direction:reverse;}
+  .marquee-content{font-family:'Baloo 2',sans-serif;width:100%;}
+  .idle-text{
+    font-size:clamp(18px,4vw,30px);font-weight:700;color:var(--gold);letter-spacing:1px;
+    text-shadow:0 0 18px rgba(255,209,102,.6);
   }
-  .ganador-nombre{font-size:1.3rem;font-weight:700;}
-  @keyframes pop{
-    0%{opacity:0;transform:scale(.85) translateY(10px);}
-    100%{opacity:1;transform:scale(1) translateY(0);}
+  .sorteando-text{
+    font-size:clamp(18px,4vw,28px);font-weight:700;color:var(--pink);letter-spacing:1px;
+    text-shadow:0 0 18px rgba(255,61,129,.7);
   }
+  .win-line{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:4px 0;}
+  .win-line .letter{display:inline-block;font-weight:800;animation:rebote 1s ease-in-out infinite;}
+  .win-title .letter{font-size:clamp(20px,4.5vw,36px);color:var(--pink);text-shadow:0 0 16px rgba(255,61,129,.8);}
+  .win-name .letter{font-size:clamp(24px,5.5vw,48px);color:var(--green);text-shadow:0 0 20px rgba(0,255,135,.8);}
 
-  /* TABLERO */
-  .tablero-wrap{padding:28px;}
-  .tablero{
-    display:grid;grid-template-columns:repeat(10,1fr);gap:7px;
-  }
+  /* ---------- TABLERO ---------- */
+  .board-card{background:var(--bg-panel);border-radius:var(--radio);padding:20px;box-shadow:var(--sombra);}
+  .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;}
   .casillero{
-    aspect-ratio:1/1;border-radius:10px;
+    aspect-ratio:1/1;border-radius:9px;background:#ffffff;border:2px solid #e5ddff;color:var(--ink);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:#fdfdfb;border:1px solid var(--line);
-    font-weight:700;transition:background .25s ease,transform .2s ease,box-shadow .25s ease;
-    padding:2px;text-align:center;
+    font-weight:800;transition:transform .1s ease,background .15s ease,box-shadow .15s ease;
+    padding:2px;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.25);
   }
-  .casillero .num{font-size:.82rem;line-height:1;}
-  .casillero .nom{
-    font-size:.5rem;font-weight:600;color:var(--verde);
-    margin-top:2px;line-height:1.05;max-width:100%;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap;
-  }
-  .casillero.vendido{background:var(--verde-suave);border-color:var(--verde-borde);}
+  .casillero .num{font-size:.8rem;line-height:1;}
+  .casillero .nom{font-size:.48rem;margin-top:2px;opacity:.75;color:#5a4a8a;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .casillero.vendido{background:#f4f2fb;border-color:#d9cdfb;}
   .casillero.encendido{
-    background:var(--verde);border-color:var(--verde);color:#fff;
-    transform:scale(1.12);box-shadow:0 0 0 4px rgba(47,111,79,.18),0 8px 18px -6px rgba(47,111,79,.6);
+    background:radial-gradient(circle,var(--pink),#8a1148);border-color:var(--pink);color:#fff;
+    box-shadow:0 0 22px var(--pink);transform:scale(1.14);
   }
-  .casillero.encendido .nom{color:#eafff1;}
+  .casillero.encendido .nom{color:#ffe3ef;}
   .casillero.ganador-final{
-    background:var(--oro);border-color:var(--oro);color:#fff;
-    box-shadow:0 0 0 6px rgba(184,144,31,.22);
+    background:radial-gradient(circle,var(--green),var(--green-dark));border-color:var(--gold);color:#04150a;
+    box-shadow:0 0 30px var(--green),0 0 0 4px rgba(255,209,102,.6);
+    animation:pulseWinner 1s ease-in-out infinite;
   }
-  .casillero.ganador-final .nom{color:#fff9e8;}
+  .casillero.ganador-final .nom{color:#04150a;}
+  @keyframes pulseWinner{0%,100%{transform:scale(1.08);}50%{transform:scale(1.18);}}
 
-  .mensaje-final{
-    text-align:center;color:var(--ink-soft);margin-top:22px;font-size:.95rem;
-  }
+  .mensaje-final{text-align:center;color:var(--lila-texto);margin-top:20px;font-size:.9rem;}
 
   @media (max-width:640px){
     .casillero .nom{display:none;}
-    header{padding:40px 16px 20px;}
-    .tablero{gap:5px;}
+    .tablero{gap:4px;}
   }
 
-  /* LIGHTBOX */
-  .lightbox{
-    position:fixed;inset:0;background:rgba(20,22,18,.86);
-    display:none;align-items:center;justify-content:center;z-index:50;padding:24px;
-  }
+  /* ---------- LIGHTBOX ---------- */
+  .lightbox{position:fixed;inset:0;background:rgba(8,4,18,.9);display:none;align-items:center;justify-content:center;z-index:50;padding:24px;}
   .lightbox.show{display:flex;}
-  .lightbox img{max-width:min(90vw,700px);max-height:85vh;border-radius:14px;}
-  .lightbox-close{
-    position:absolute;top:22px;right:26px;color:#fff;font-size:1.8rem;
-    background:none;border:none;cursor:pointer;
-  }
+  .lightbox img{max-width:min(90vw,700px);max-height:85vh;border-radius:16px;box-shadow:0 0 40px rgba(255,209,102,.35);}
+  .lightbox-close{position:absolute;top:22px;right:26px;color:#fff;font-size:1.8rem;background:none;border:none;cursor:pointer;}
 
-  footer{text-align:center;color:var(--ink-soft);font-size:.82rem;padding:20px;}
+  footer{text-align:center;color:var(--lila-texto);font-size:.8rem;padding:18px;}
+
+  /* ---------- CONFETTI ---------- */
+  .confetti-piece{
+    position:fixed;top:-40px;font-size:26px;z-index:70;pointer-events:none;
+    animation:caer linear forwards;
+  }
+  @keyframes caer{
+    0%{transform:translateY(0) rotate(0deg);opacity:1;}
+    100%{transform:translateY(105vh) rotate(360deg);opacity:.9;}
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <h1 class="titulo">Sorteos <em>Eros</em></h1>
-  <a id="ig-link" class="ig-pill" href="https://instagram.com/eros_sorteos" target="_blank" rel="noopener">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.25.07 1.63.07 4.81s-.01 3.56-.07 4.81c-.15 3.23-1.67 4.77-4.92 4.92-1.25.06-1.62.07-4.85.07s-3.6-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.25-.07-1.63-.07-4.81s.01-3.56.07-4.81c.15-3.23 1.67-4.77 4.92-4.92C8.4 2.21 8.8 2.2 12 2.2Zm0 1.8c-3.15 0-3.5.01-4.73.07-2.27.1-3.4 1.24-3.5 3.5-.06 1.23-.07 1.58-.07 4.73s.01 3.5.07 4.73c.1 2.27 1.23 3.4 3.5 3.5 1.23.06 1.58.07 4.73.07s3.5-.01 4.73-.07c2.27-.1 3.4-1.23 3.5-3.5.06-1.23.07-1.58.07-4.73s-.01-3.5-.07-4.73c-.1-2.26-1.23-3.4-3.5-3.5C15.5 4.01 15.15 4 12 4Zm0 3.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Zm0 1.8a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2Zm4.6-2a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Z"/></svg>
-    <span id="ig-user">@eros_sorteos</span>
-  </a>
-</header>
-
 <div class="wrap">
 
-  <!-- PREMIO -->
-  <section class="card premio">
-    <p class="eyebrow">Este mes sorteamos</p>
-    <h2 id="premio-nombre">Cargando premio…</h2>
-    <p id="premio-desc"></p>
-    <div class="galeria" id="galeria"></div>
-  </section>
-
-  <!-- GANADOR -->
-  <section class="card ganador-panel" id="ganador-panel">
-    <p class="ganador-estado" id="ganador-estado">Esperando sorteo…</p>
-    <div class="ganador-resultado" id="ganador-resultado">
-      <p class="eyebrow">Ganador</p>
-      <div class="ganador-numero" id="ganador-numero-txt">--</div>
-      <div class="ganador-nombre" id="ganador-nombre-txt"></div>
+  <div class="brand-header">
+    <div class="avatar-wrap" id="avatar-wrap">
+      <img src="foto-perfil.jpg" alt="Foto del organizador" id="avatar-img">
     </div>
-  </section>
+    <div class="brand-text">
+      <div class="brand-title">Sorteos Eros</div>
+      <div class="brand-sub">Sorteo en vivo, en serio y sin trampa 🎯</div>
+      <a class="brand-ig" id="ig-link" href="https://instagram.com/eros_sorteos" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.25.07 1.63.07 4.81s-.01 3.56-.07 4.81c-.15 3.23-1.67 4.77-4.92 4.92-1.25.06-1.62.07-4.85.07s-3.6-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.25-.07-1.63-.07-4.81s.01-3.56.07-4.81c.15-3.23 1.67-4.77 4.92-4.92C8.4 2.21 8.8 2.2 12 2.2Zm0 1.8c-3.15 0-3.5.01-4.73.07-2.27.1-3.4 1.24-3.5 3.5-.06 1.23-.07 1.58-.07 4.73s.01 3.5.07 4.73c.1 2.27 1.23 3.4 3.5 3.5 1.23.06 1.58.07 4.73.07s3.5-.01 4.73-.07c2.27-.1 3.4-1.23 3.5-3.5.06-1.23.07-1.58.07-4.73s-.01-3.5-.07-4.73c-.1-2.26-1.23-3.4-3.5-3.5C15.5 4.01 15.15 4 12 4Zm0 3.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Zm0 1.8a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2Zm4.6-2a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Z"/></svg>
+        <span id="ig-user">@eros_sorteos</span>
+      </a>
+    </div>
+  </div>
 
-  <!-- TABLERO -->
-  <section class="card tablero-wrap">
+  <!-- CARTEL ANIMADO CON EL NOMBRE DEL PREMIO -->
+  <div class="cartel" id="cartel">
+    <div>
+      <div class="cartel-eyebrow">🎁 Sorteamos 🎁</div>
+      <div class="cartel-letras" id="cartel-letras"></div>
+    </div>
+  </div>
+
+  <div class="premio-card">
+    <p class="premio-desc" id="premio-desc">Cargando premio…</p>
+    <div class="galeria" id="galeria"></div>
+  </div>
+
+  <div class="marquee" id="marquee">
+    <div class="marquee-content" id="marquee-content">
+      <div class="idle-text">🎪 ESPERANDO SORTEO 🎪</div>
+    </div>
+  </div>
+
+  <div class="board-card">
     <div class="tablero" id="tablero"></div>
     <p class="mensaje-final">El sorteo se realizará una vez vendidos los 100 números.</p>
-  </section>
+  </div>
 
 </div>
 
@@ -213,18 +244,32 @@ const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let sorteoActual = null;      // fila de sorteos
-let numerosActuales = [];     // fila de numeros_publicos
+let sorteoActual = null;
+let numerosActuales = [];
 let animando = false;
 
 const tableroEl = document.getElementById('tablero');
-const ganadorPanel = document.getElementById('ganador-panel');
-const ganadorEstado = document.getElementById('ganador-estado');
-const ganadorResultado = document.getElementById('ganador-resultado');
-const ganadorNumTxt = document.getElementById('ganador-numero-txt');
-const ganadorNomTxt = document.getElementById('ganador-nombre-txt');
+const marqueeContent = document.getElementById('marquee-content');
 
-// ---------- Construcción del tablero ----------
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function lettersHtml(text, cssClass){
+  return text.split('').map((ch,i)=>{
+    const c = ch === ' ' ? '&nbsp;' : escapeHtml(ch);
+    return `<span class="letter ${cssClass}" style="animation-delay:${i*0.05}s">${c}</span>`;
+  }).join('');
+}
+function letrasCartel(text){
+  return text.split('').map((ch,i)=>{
+    const c = ch === ' ' ? '&nbsp;' : escapeHtml(ch);
+    return `<span class="letra" style="animation-delay:${i*0.06}s">${c}</span>`;
+  }).join('');
+}
+
+// ---------- Tablero ----------
 function construirTablero(){
   tableroEl.innerHTML = '';
   for(let n=1;n<=100;n++){
@@ -257,14 +302,10 @@ async function cargarConfig(){
 
 async function cargarSorteoActivo(){
   const { data } = await sb.from('sorteos')
-    .select('*')
-    .in('estado',['activo','en_curso'])
-    .order('created_at',{ascending:false})
-    .limit(1)
-    .maybeSingle();
+    .select('*').in('estado',['activo','en_curso']).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(!data) return;
   sorteoActual = data;
-  document.getElementById('premio-nombre').textContent = data.premio_nombre || 'Premio sorpresa';
+  document.getElementById('cartel-letras').innerHTML = letrasCartel(data.premio_nombre || 'Premio sorpresa');
   document.getElementById('premio-desc').textContent = data.premio_descripcion || '';
   await cargarFotos();
   await cargarNumeros();
@@ -296,7 +337,6 @@ async function cargarNumeros(){
 
 function actualizarGanadorUI(){
   if(sorteoActual.ganador_numero && sorteoActual.estado==='en_curso' && !animando){
-    // Ya hay ganador guardado (por ejemplo, se recargó la página después del sorteo)
     mostrarGanadorFinal(sorteoActual.ganador_numero, sorteoActual.ganador_nombre, false);
   } else if(sorteoActual.sorteo_en_curso && !animando){
     iniciarAnimacionSorteo();
@@ -314,12 +354,14 @@ document.getElementById('lightbox-close').addEventListener('click', ()=>{
 document.getElementById('lightbox').addEventListener('click', (e)=>{
   if(e.target.id==='lightbox') document.getElementById('lightbox').classList.remove('show');
 });
+document.getElementById('avatar-wrap').addEventListener('click', ()=>{
+  abrirLightbox(document.getElementById('avatar-img').src);
+});
 
 // ---------- Animación del sorteo (20 segundos, solo números vendidos) ----------
 async function iniciarAnimacionSorteo(){
   animando = true;
-  ganadorEstado.textContent = 'Sorteando…';
-  ganadorResultado.classList.remove('show');
+  marqueeContent.innerHTML = '<div class="sorteando-text">🎲 SORTEANDO 🎲</div>';
 
   const vendidos = numerosActuales.filter(n=>n.vendido).map(n=>n.numero);
   if(vendidos.length===0){ animando=false; return; }
@@ -330,9 +372,7 @@ async function iniciarAnimacionSorteo(){
 
   function frame(ahora){
     const t = Math.min((ahora - inicio) / DURACION_MS, 1);
-    // easing: rápido al inicio, lento al final
     const progresoCurva = 1 - Math.pow(1 - t, 3);
-    // el intervalo entre saltos crece con el progreso (de ~70ms a ~450ms)
     const intervaloObjetivo = 70 + progresoCurva * 380;
 
     if(t < 1){
@@ -363,27 +403,43 @@ async function finalizarAnimacion(){
   if(ultimoResaltado){
     document.getElementById('casillero-'+ultimoResaltado)?.classList.remove('encendido');
   }
-  // Vuelve a leer Supabase: para entonces el ganador ya está guardado
   const { data } = await sb.from('sorteos').select('*').eq('id', sorteoActual.id).single();
   sorteoActual = data;
   animando = false;
   if(data && data.ganador_numero){
     mostrarGanadorFinal(data.ganador_numero, data.ganador_nombre, true);
   } else {
-    ganadorEstado.textContent = 'Esperando sorteo…';
+    marqueeContent.innerHTML = '<div class="idle-text">🎪 ESPERANDO SORTEO 🎪</div>';
   }
 }
 
-function mostrarGanadorFinal(numero, nombre, animar){
+function mostrarGanadorFinal(numero, nombre, festejar){
   document.querySelectorAll('.casillero.ganador-final').forEach(el=>el.classList.remove('ganador-final'));
   const el = document.getElementById('casillero-'+numero);
   if(el) el.classList.add('ganador-final');
-  ganadorPanel.classList.add('activo');
-  ganadorEstado.textContent = '';
-  ganadorNumTxt.textContent = '#' + numero;
-  ganadorNomTxt.textContent = nombre || '';
-  if(animar) ganadorResultado.classList.remove('show');
-  requestAnimationFrame(()=> ganadorResultado.classList.add('show'));
+
+  marqueeContent.innerHTML = `
+    <div class="win-line win-title">${lettersHtml('🎉 GANADOR 🎉','')}</div>
+    <div class="win-line win-name">${lettersHtml('#'+numero+' '+(nombre||''),'')}</div>
+  `;
+  if(festejar) lanzarConfeti();
+}
+
+function lanzarConfeti(){
+  const emojis = ['🎉','🎊','🥳','✨','🍾','🎈','🪅'];
+  const total = 40;
+  for(let i=0;i<total;i++){
+    setTimeout(()=>{
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      piece.style.left = Math.random()*100 + 'vw';
+      const dur = 2.5 + Math.random()*2;
+      piece.style.animationDuration = dur + 's';
+      document.body.appendChild(piece);
+      setTimeout(()=>piece.remove(), dur*1000 + 200);
+    }, i*40);
+  }
 }
 
 // ---------- Realtime ----------
@@ -406,7 +462,6 @@ function suscribirRealtime(){
         iniciarAnimacionSorteo();
       }
       if(row.estado === 'finalizado'){
-        // El admin generó un sorteo nuevo: recargamos todo
         setTimeout(()=> location.reload(), 800);
       }
     })

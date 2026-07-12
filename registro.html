@@ -234,7 +234,6 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
     const path = `${linkInfo.sorteo_id}/${Date.now()}-${file.name}`;
     const { error: upErr } = await sb.storage.from('comprobantes').upload(path, file);
     if(upErr) throw new Error('No se pudo subir el comprobante.');
-    const { data: pub } = sb.storage.from('comprobantes').getPublicUrl(path);
 
     const { data, error } = await sb.rpc('registrar_compra', {
       p_token: token,
@@ -243,7 +242,7 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
       p_correo: correo,
       p_dni: dni,
       p_telefono: telefono,
-      p_comprobante_url: pub.publicUrl
+      p_comprobante_url: path
     });
 
     if(error) throw new Error(error.message.includes('disponibles') ? 'Uno de los números elegidos ya fue tomado por otra persona. Volvé a intentar.' : 'No se pudo completar el registro.');

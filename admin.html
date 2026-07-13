@@ -576,7 +576,7 @@ async function cargarLinks(){
 
 // ---------- SORTEAR ----------
 document.getElementById('btn-sortear').addEventListener('click', async ()=>{
-  if(!confirm('¿Realizar el sorteo ahora entre los números vendidos hasta el momento? Esta acción activa la animación pública.')) return;
+  if(!confirm('¿Realizar el sorteo ahora entre los números vendidos hasta el momento? Arranca una cuenta regresiva de 1 minuto en la pantalla pública y después corre la luz hasta el ganador.')) return;
   const { data, error } = await sb.rpc('realizar_sorteo', { p_sorteo_id: sorteoActual.id });
   if(error){ toast('No se pudo sortear: '+error.message); return; }
   toast(`Ganador: #${data.numero} · ${data.nombre||''}`);

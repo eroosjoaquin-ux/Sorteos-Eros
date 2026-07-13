@@ -101,6 +101,19 @@
   .marquee-content{font-family:'Baloo 2',sans-serif;width:100%;}
   .idle-text{font-size:clamp(12px,2.2vh,18px);font-weight:700;color:var(--gold);letter-spacing:.5px;}
   .sorteando-text{font-size:clamp(12px,2.2vh,18px);font-weight:700;color:var(--pink);letter-spacing:.5px;}
+  .countdown-text{
+    font-size:clamp(12px,2.4vh,20px);font-weight:800;color:#fff;letter-spacing:.5px;
+    animation:parpadeo 1s ease-in-out infinite;
+  }
+  @keyframes parpadeo{0%,100%{opacity:1;}50%{opacity:.55;}}
+  body.flash::after{
+    content:'';position:fixed;inset:0;z-index:60;pointer-events:none;
+    background:radial-gradient(circle,rgba(0,255,135,.55),rgba(255,209,102,.25) 55%,transparent 75%);
+    animation:flashPop .7s ease-out forwards;
+  }
+  @keyframes flashPop{0%{opacity:0;}15%{opacity:1;}100%{opacity:0;}}
+  .marquee.festejo{animation:sacudida .4s ease-in-out 4;box-shadow:0 0 60px rgba(0,255,135,.5),0 0 0 3px var(--gold);}
+  @keyframes sacudida{0%,100%{transform:translateX(0) scale(1);}25%{transform:translateX(-4px) scale(1.015);}75%{transform:translateX(4px) scale(1.015);}}
   .win-line{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;}
   .win-line .letter{display:inline-block;font-weight:800;animation:rebote 1s ease-in-out infinite;}
   .win-title .letter{font-size:clamp(12px,2.4vh,20px);color:var(--pink);}
@@ -305,8 +318,8 @@ async function cargarNumeros(){
 function actualizarGanadorUI(){
   if(sorteoActual.ganador_numero && sorteoActual.estado==='en_curso' && !animando){
     mostrarGanadorFinal(sorteoActual.ganador_numero, sorteoActual.ganador_nombre, false);
-  } else if(sorteoActual.sorteo_en_curso && !animando){
-    iniciarAnimacionSorteo();
+  } else if(sorteoActual.sorteo_en_curso && sorteoActual.sorteo_iniciado_at && !animando){
+    manejarSecuenciaSorteo(new Date(sorteoActual.sorteo_iniciado_at).getTime());
   }
 }
 
@@ -325,33 +338,24 @@ document.getElementById('avatar-wrap').addEventListener('click', ()=>{
   abrirLightbox(document.getElementById('avatar-img').src);
 });
 
-// ---------- Animación del sorteo (20 segundos, solo números vendidos) ----------
-async function iniciarAnimacionSorteo(){
+// ---------- Secuencia del show en vivo ----------
+// La luz rebota y el contador baja AL MISMO TIEMPO, durante el minuto entero.
+// Todo se calcula contra la hora real (Date.now()), no contra un timer local,
+// así cualquiera que esté mirando -aunque recién entre o recargue la página-
+// ve exactamente el mismo momento del show que los demás. No hace falta
+// recargar la página en ningún momento: el nombre del ganador aparece solo,
+// en vivo, apenas se corta el conteo.
+const DURACION_SHOW_MS = 60000;      // 1 minuto: luz + contador juntos
+const INTERVALO_LUZ_MS = 80;         // velocidad CONSTANTE de la luz (no se acelera ni frena)
+
+async function manejarSecuenciaSorteo(inicioMs){
   animando = true;
-  marqueeContent.innerHTML = '<div class="sorteando-text">🎲 SORTEANDO 🎲</div>';
-
-  const vendidos = numerosActuales.filter(n=>n.vendido).map(n=>n.numero);
-  if(vendidos.length===0){ animando=false; return; }
-
-  const DURACION_MS = 20000;
-  const inicio = performance.now();
-  let anterior = null;
-
-  function frame(ahora){
-    const t = Math.min((ahora - inicio) / DURACION_MS, 1);
-    const progresoCurva = 1 - Math.pow(1 - t, 3);
-    const intervaloObjetivo = 70 + progresoCurva * 380;
-    if(t < 1){
-      if(anterior===null || ahora - anterior >= intervaloObjetivo){
-        anterior = ahora;
-        resaltarAlAzar(vendidos);
-      }
-      requestAnimationFrame(frame);
-    } else {
-      finalizarAnimacion();
-    }
+  const fin = inicioMs + DURACION_SHOW_MS;
+  if(Date.now() < fin){
+    await correrShowEnVivo(fin);
   }
-  requestAnimationFrame(frame);
+  await mostrarResultadoFinal();
+  animando = false;
 }
 
 let ultimoResaltado = null;
@@ -365,13 +369,45 @@ function resaltarAlAzar(lista){
   ultimoResaltado = num;
 }
 
-async function finalizarAnimacion(){
-  if(ultimoResaltado){
-    document.getElementById('casillero-'+ultimoResaltado)?.classList.remove('encendido');
-  }
+function correrShowEnVivo(fin){
+  return new Promise(async resolve=>{
+    // El ganador ya quedó guardado en Supabase apenas el admin tocó "Sortear";
+    // lo traemos ahora para que la luz "aterrice" de verdad sobre él al cortar,
+    // en vez de saltar a otro casillero al final.
+    const { data } = await sb.from('sorteos').select('*').eq('id', sorteoActual.id).single();
+    sorteoActual = data;
+    const numeroGanador = data?.ganador_numero;
+    const vendidos = numerosActuales.filter(n=>n.vendido).map(n=>n.numero);
+    if(vendidos.length===0 || !numeroGanador){ resolve(); return; }
+
+    let ultimoSegundoMostrado = null;
+    const id = setInterval(()=>{
+      const restanteMs = fin - Date.now();
+
+      if(restanteMs <= INTERVALO_LUZ_MS){
+        clearInterval(id);
+        // Corte en seco: apaga la luz de recorrido justo acá, sin transición.
+        if(ultimoResaltado) document.getElementById('casillero-'+ultimoResaltado)?.classList.remove('encendido');
+        resolve();
+        return;
+      }
+
+      resaltarAlAzar(vendidos);
+
+      const seg = Math.ceil(restanteMs/1000);
+      if(seg !== ultimoSegundoMostrado){
+        ultimoSegundoMostrado = seg;
+        const mm = Math.floor(seg/60);
+        const ss = String(seg%60).padStart(2,'0');
+        marqueeContent.innerHTML = `<div class="countdown-text">🔴 EN VIVO · SORTEANDO · ${mm}:${ss}</div>`;
+      }
+    }, INTERVALO_LUZ_MS);
+  });
+}
+
+async function mostrarResultadoFinal(){
   const { data } = await sb.from('sorteos').select('*').eq('id', sorteoActual.id).single();
   sorteoActual = data;
-  animando = false;
   if(data && data.ganador_numero){
     mostrarGanadorFinal(data.ganador_numero, data.ganador_nombre, true);
   } else {
@@ -387,7 +423,17 @@ function mostrarGanadorFinal(numero, nombre, festejar){
     <div class="win-line win-title">${lettersHtml('🎉 GANADOR 🎉','')}</div>
     <div class="win-line win-name">${lettersHtml('#'+numero+' '+(nombre||''),'')}</div>
   `;
-  if(festejar) lanzarConfeti();
+  if(festejar) lanzarFestejo();
+}
+
+function lanzarFestejo(){
+  document.body.classList.add('flash');
+  setTimeout(()=> document.body.classList.remove('flash'), 700);
+  document.querySelector('.marquee').classList.add('festejo');
+  setTimeout(()=> document.querySelector('.marquee').classList.remove('festejo'), 2200);
+  lanzarConfeti();
+  setTimeout(lanzarConfeti, 500);
+  setTimeout(lanzarConfeti, 1100);
 }
 
 function lanzarConfeti(){
@@ -423,7 +469,7 @@ function suscribirRealtime(){
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sorteos', filter:`id=eq.${sorteoActual.id}` }, payload=>{
       const row = payload.new;
       sorteoActual = row;
-      if(row.sorteo_en_curso && !animando){ iniciarAnimacionSorteo(); }
+      if(row.sorteo_en_curso && row.sorteo_iniciado_at && !animando){ manejarSecuenciaSorteo(new Date(row.sorteo_iniciado_at).getTime()); }
       if(row.estado === 'finalizado'){ setTimeout(()=> location.reload(), 800); }
     })
     .on('postgres_changes', { event:'*', schema:'public', table:'premio_fotos', filter:`sorteo_id=eq.${sorteoActual.id}` }, ()=>{

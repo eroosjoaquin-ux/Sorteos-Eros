@@ -134,7 +134,11 @@
   }
   .casillero .num{font-size:.72em;line-height:1;}
   .casillero .nom{font-size:.38em;margin-top:1px;opacity:.75;color:#5a4a8a;max-width:96%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .casillero.vendido{background:#f4f2fb;border-color:#d9cdfb;}
+  .casillero.vendido{
+    background:linear-gradient(150deg,#0d5c38,#0a3f27);border-color:#0a3f27;color:#fff;cursor:pointer;
+  }
+  .casillero.vendido .nom{color:#c9f7dd;opacity:1;}
+  .casillero.vendido:active{transform:scale(.94);}
   .casillero.encendido{
     background:radial-gradient(circle,var(--pink),#8a1148);border-color:var(--pink);color:#fff;
     box-shadow:0 0 16px var(--pink);transform:scale(1.15);z-index:2;
@@ -154,6 +158,13 @@
   .lightbox.show{display:flex;}
   .lightbox img{max-width:min(90vw,700px);max-height:85vh;border-radius:16px;box-shadow:0 0 40px rgba(255,209,102,.35);}
   .lightbox-close{position:absolute;top:18px;right:22px;color:#fff;font-size:1.8rem;background:none;border:none;cursor:pointer;}
+  .ficha-numero{
+    background:linear-gradient(160deg,#2a1454,#170826);border-radius:20px;padding:28px 34px;text-align:center;
+    box-shadow:0 0 40px rgba(0,255,135,.25);border:1px solid rgba(0,255,135,.3);min-width:240px;
+  }
+  .ficha-num{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:2rem;color:var(--gold);}
+  .ficha-label{font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--lila-texto);margin-top:10px;}
+  .ficha-nombre{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:1.3rem;color:var(--green);margin-top:4px;}
 
   .confetti-piece{position:fixed;top:-40px;font-size:22px;z-index:70;pointer-events:none;animation:caer linear forwards;}
   @keyframes caer{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(105vh) rotate(360deg);opacity:.9;}}
@@ -202,6 +213,15 @@
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" id="lightbox-close">&times;</button>
   <img id="lightbox-img" src="" alt="Foto del premio">
+</div>
+
+<div class="lightbox" id="modal-nombre">
+  <button class="lightbox-close" id="mn-cerrar">&times;</button>
+  <div class="ficha-numero">
+    <div class="ficha-num" id="mn-numero">#--</div>
+    <div class="ficha-label">Comprado por</div>
+    <div class="ficha-nombre" id="mn-nombre">—</div>
+  </div>
 </div>
 
 <script>
@@ -263,10 +283,29 @@ function pintarNumeros(){
   numerosActuales.forEach(n=>{
     const el = document.getElementById('casillero-'+n.numero);
     if(!el) return;
+    const yaVendido = el.classList.contains('vendido');
     el.classList.toggle('vendido', !!n.vendido);
     el.querySelector('.nom').textContent = n.vendido ? (n.nombre_completo || '') : '';
+    if(n.vendido && !yaVendido){
+      el.onclick = ()=> abrirFichaComprador(n.numero, n.nombre_completo);
+    }
+    if(!n.vendido){
+      el.onclick = null;
+    }
   });
 }
+
+function abrirFichaComprador(numero, nombre){
+  document.getElementById('mn-numero').textContent = '#'+numero;
+  document.getElementById('mn-nombre').textContent = nombre || 'Sin nombre cargado';
+  document.getElementById('modal-nombre').classList.add('show');
+}
+document.getElementById('mn-cerrar').addEventListener('click', ()=>{
+  document.getElementById('modal-nombre').classList.remove('show');
+});
+document.getElementById('modal-nombre').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-nombre') document.getElementById('modal-nombre').classList.remove('show');
+});
 
 // ---------- Carga inicial ----------
 async function cargarConfig(){
@@ -316,10 +355,17 @@ async function cargarNumeros(){
 }
 
 function actualizarGanadorUI(){
-  if(sorteoActual.ganador_numero && sorteoActual.estado==='en_curso' && !animando){
-    mostrarGanadorFinal(sorteoActual.ganador_numero, sorteoActual.ganador_nombre, false);
-  } else if(sorteoActual.sorteo_en_curso && sorteoActual.sorteo_iniciado_at && !animando){
-    manejarSecuenciaSorteo(new Date(sorteoActual.sorteo_iniciado_at).getTime());
+  if(sorteoActual.estado === 'en_curso' && sorteoActual.sorteo_iniciado_at){
+    const inicioMs = new Date(sorteoActual.sorteo_iniciado_at).getTime();
+    const finShow = inicioMs + DURACION_SHOW_MS;
+    if(Date.now() >= finShow){
+      // El minuto del show ya pasó hace rato: mostramos el resultado directo.
+      if(sorteoActual.ganador_numero) mostrarGanadorFinal(sorteoActual.ganador_numero, sorteoActual.ganador_nombre, false);
+    } else if(!animando){
+      // Estamos DENTRO del minuto del show (recién arrancó o alguien recargó
+      // a mitad de camino): corremos la secuencia desde el punto que toca.
+      manejarSecuenciaSorteo(inicioMs);
+    }
   }
 }
 

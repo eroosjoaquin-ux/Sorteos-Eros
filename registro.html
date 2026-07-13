@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -106,7 +107,7 @@
       <div class="campo"><label>DNI</label><input id="f-dni" placeholder="Documento"></div>
       <div class="campo"><label>Teléfono</label><input id="f-telefono" placeholder="Con código de área"></div>
       <div class="campo">
-        <label>Comprobante de pago (imagen o PDF)</label>
+        <label>Comprobante de pago (imagen o PDF) · opcional</label>
         <div class="file-wrap">
           <input id="f-comprobante" type="file" accept=".jpg,.jpeg,.png,.pdf">
         </div>
@@ -220,20 +221,24 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
 
   if(seleccionados.size === 0){ mostrarErrorForm('Elegí al menos un número.'); return; }
   if(!nombre || !correo || !dni || !telefono){ mostrarErrorForm('Completá todos los datos.'); return; }
-  if(!file){ mostrarErrorForm('Subí el comprobante de pago.'); return; }
 
-  const extensionesValidas = ['jpg','jpeg','png','pdf'];
-  const ext = file.name.split('.').pop().toLowerCase();
-  if(!extensionesValidas.includes(ext)){ mostrarErrorForm('El comprobante debe ser JPG, PNG o PDF.'); return; }
-  if(file.size > 8 * 1024 * 1024){ mostrarErrorForm('El archivo no puede superar 8 MB.'); return; }
+  if(file){
+    const extensionesValidas = ['jpg','jpeg','png','pdf'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if(!extensionesValidas.includes(ext)){ mostrarErrorForm('El comprobante debe ser JPG, PNG o PDF.'); return; }
+    if(file.size > 8 * 1024 * 1024){ mostrarErrorForm('El archivo no puede superar 8 MB.'); return; }
+  }
 
   const btn = document.getElementById('btn-confirmar');
   btn.disabled = true; btn.textContent = 'Enviando…';
 
   try{
-    const path = `${linkInfo.sorteo_id}/${Date.now()}-${file.name}`;
-    const { error: upErr } = await sb.storage.from('comprobantes').upload(path, file);
-    if(upErr) throw new Error('No se pudo subir el comprobante.');
+    let comprobantePath = null;
+    if(file){
+      comprobantePath = `${linkInfo.sorteo_id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from('comprobantes').upload(comprobantePath, file);
+      if(upErr) throw new Error('No se pudo subir el comprobante.');
+    }
 
     const { data, error } = await sb.rpc('registrar_compra', {
       p_token: token,
@@ -242,7 +247,7 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
       p_correo: correo,
       p_dni: dni,
       p_telefono: telefono,
-      p_comprobante_url: path
+      p_comprobante_url: comprobantePath
     });
 
     if(error) throw new Error(error.message.includes('disponibles') ? 'Uno de los números elegidos ya fue tomado por otra persona. Volvé a intentar.' : 'No se pudo completar el registro.');

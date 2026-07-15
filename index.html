@@ -82,7 +82,8 @@
   }
   @keyframes rebote{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
   .cartel-desc{font-size:clamp(10px,1.6vh,12px);color:var(--lila-texto);margin-top:2px;
-    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+    cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;}
   .galeria{display:flex;gap:6px;flex-shrink:0;overflow-x:auto;max-width:40%;}
   .galeria img{
     width:clamp(32px,6vh,46px);height:clamp(32px,6vh,46px);object-fit:cover;border-radius:10px;cursor:pointer;
@@ -165,6 +166,13 @@
   .ficha-num{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:2rem;color:var(--gold);}
   .ficha-label{font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--lila-texto);margin-top:10px;}
   .ficha-nombre{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:1.3rem;color:var(--green);margin-top:4px;}
+  .ficha-desc{
+    background:linear-gradient(160deg,#2a1454,#170826);border-radius:20px;padding:28px 30px;text-align:left;
+    box-shadow:0 0 40px rgba(255,209,102,.25);border:1px solid rgba(255,209,102,.3);
+    max-width:min(90vw,520px);max-height:80vh;overflow-y:auto;
+  }
+  .ficha-desc .ficha-label{text-align:center;margin-top:0;margin-bottom:10px;}
+  .ficha-desc-texto{font-size:.95rem;line-height:1.5;color:#fff;white-space:pre-wrap;}
 
   .confetti-piece{position:fixed;top:-40px;font-size:22px;z-index:70;pointer-events:none;animation:caer linear forwards;}
   @keyframes caer{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(105vh) rotate(360deg);opacity:.9;}}
@@ -221,6 +229,14 @@
     <div class="ficha-num" id="mn-numero">#--</div>
     <div class="ficha-label">Comprado por</div>
     <div class="ficha-nombre" id="mn-nombre">—</div>
+  </div>
+</div>
+
+<div class="lightbox" id="modal-desc">
+  <button class="lightbox-close" id="md-cerrar">&times;</button>
+  <div class="ficha-desc">
+    <div class="ficha-label">🎁 Sobre el premio</div>
+    <div class="ficha-desc-texto" id="md-texto">—</div>
   </div>
 </div>
 
@@ -305,6 +321,19 @@ document.getElementById('mn-cerrar').addEventListener('click', ()=>{
 });
 document.getElementById('modal-nombre').addEventListener('click', (e)=>{
   if(e.target.id==='modal-nombre') document.getElementById('modal-nombre').classList.remove('show');
+});
+
+document.getElementById('premio-desc').addEventListener('click', ()=>{
+  const texto = document.getElementById('premio-desc').textContent.trim();
+  if(!texto) return;
+  document.getElementById('md-texto').textContent = texto;
+  document.getElementById('modal-desc').classList.add('show');
+});
+document.getElementById('md-cerrar').addEventListener('click', ()=>{
+  document.getElementById('modal-desc').classList.remove('show');
+});
+document.getElementById('modal-desc').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-desc') document.getElementById('modal-desc').classList.remove('show');
 });
 
 // ---------- Carga inicial ----------

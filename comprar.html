@@ -187,7 +187,7 @@ async function pollEstado(id, intento){
   if(data && data.existe){
     if(data.estado === 'aprobada'){
       document.getElementById('aprobado-detalle').textContent =
-        `Números ${data.numeros.join(', ')} registrados a tu nombre. ¡Gracias por participar!`;
+        `Números ${data.numeros.join(', ')} registrados a tu nombre. Te mandamos tu ticket con código QR a tu correo (revisá spam si no lo ves). ¡Gracias por participar!`;
       mostrarSolo('vista-aprobado');
       return;
     }

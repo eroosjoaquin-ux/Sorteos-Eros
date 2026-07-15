@@ -565,7 +565,12 @@ function suscribirRealtime(){
 (async function init(){
   await cargarConfig();
   await cargarSorteoActivo();
-  sb.rpc('incrementar_visita');
+  try{
+    const { error } = await sb.rpc('incrementar_visita');
+    if(error) console.error('No se pudo contar la visita:', error);
+  }catch(e){
+    console.error('Error de red al contar la visita:', e);
+  }
 })();
 </script>
 </body>

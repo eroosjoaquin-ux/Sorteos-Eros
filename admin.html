@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
     --bg:#f3f2ee;--panel:#fff;--ink:#1d2420;--ink-soft:#636b65;--line:#e3e0d6;
@@ -122,6 +123,16 @@
   .modal .acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
   .comprobante-link{color:var(--verde);font-weight:700;font-size:.82rem;}
 
+  #reader{width:100%;max-width:360px;margin:10px auto 0;border-radius:12px;overflow:hidden;}
+  #reader video{border-radius:12px;}
+  .ticket-manual{display:flex;gap:8px;margin-top:4px;}
+  .ticket-manual input{flex:1;}
+  .resultado-ticket{border-width:2px;border-style:solid;margin-top:12px;}
+  .resultado-ticket.valido{border-color:var(--verde);background:var(--verde-suave);}
+  .resultado-ticket.invalido{border-color:var(--rojo);background:#f8e8e6;}
+  .resultado-ticket h3{font-size:1rem;}
+  .resultado-ticket p{margin:4px 0;font-size:.86rem;}
+
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:.82rem;
@@ -159,6 +170,7 @@
     <button class="tab-btn" data-tab="sorteo">🎲 Sorteo</button>
     <button class="tab-btn" data-tab="tablero">🔢 Tablero</button>
     <button class="tab-btn" data-tab="historial">🏆 Historial</button>
+    <button class="tab-btn" data-tab="ticket">🎫 Ticket</button>
   </div>
 
   <div class="tab-content">
@@ -254,6 +266,27 @@
       <div class="card" id="historial"></div>
     </section>
 
+    <!-- TICKET -->
+    <section class="panel" data-panel="ticket">
+      <div class="card bloque">
+        <h2>Validar ticket</h2>
+        <p class="ayuda" style="margin-top:0">Escaneá el QR del ticket del ganador, o pegá el código a mano si la cámara falla.</p>
+        <div class="fila-acciones">
+          <button class="btn chico" id="btn-iniciar-scanner">📷 Iniciar cámara</button>
+          <button class="btn secundario chico" id="btn-detener-scanner" style="display:none">Detener cámara</button>
+        </div>
+        <div id="reader"></div>
+        <div style="margin-top:14px">
+          <label>O pegá el código manualmente</label>
+          <div class="ticket-manual">
+            <input id="ticket-manual-input" placeholder="EROS-TICKET:xxxxxxxx-xxxx-xxxx-...">
+            <button class="btn secundario chico" id="btn-validar-manual">Validar</button>
+          </div>
+        </div>
+      </div>
+      <div id="ticket-resultado"></div>
+    </section>
+
   </div>
 </div>
 
@@ -308,6 +341,7 @@ function toast(msg){
 // ---------- TABS ----------
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
+    if(btn.dataset.tab !== 'ticket') detenerScanner();
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('activo'));
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('activo'));
     btn.classList.add('activo');
@@ -614,6 +648,100 @@ async function cargarHistorial(){
     cont.appendChild(div);
   });
 }
+
+// ---------- TICKET: escáner y validación ----------
+let html5QrCode = null;
+
+document.getElementById('btn-iniciar-scanner').addEventListener('click', async ()=>{
+  if(html5QrCode) return;
+  html5QrCode = new Html5Qrcode("reader");
+  try{
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 240 },
+      (decodedText)=>{ procesarCodigoTicket(decodedText); detenerScanner(); },
+      ()=>{ /* frame sin QR, ignorar */ }
+    );
+    document.getElementById('btn-iniciar-scanner').style.display = 'none';
+    document.getElementById('btn-detener-scanner').style.display = 'inline-block';
+  } catch(err){
+    toast('No se pudo acceder a la cámara. Probá con el código manual.');
+    html5QrCode = null;
+  }
+});
+
+document.getElementById('btn-detener-scanner').addEventListener('click', detenerScanner);
+
+async function detenerScanner(){
+  if(!html5QrCode) return;
+  try{ await html5QrCode.stop(); html5QrCode.clear(); }catch(_){}
+  html5QrCode = null;
+  document.getElementById('btn-iniciar-scanner').style.display = 'inline-block';
+  document.getElementById('btn-detener-scanner').style.display = 'none';
+}
+
+document.getElementById('btn-validar-manual').addEventListener('click', ()=>{
+  const val = document.getElementById('ticket-manual-input').value.trim();
+  if(val) procesarCodigoTicket(val);
+});
+
+async function procesarCodigoTicket(textoLeido){
+  const id = textoLeido.replace('EROS-TICKET:', '').trim();
+  const cont = document.getElementById('ticket-resultado');
+  cont.innerHTML = '<p class="ayuda">Validando…</p>';
+
+  if(!id){
+    cont.innerHTML = renderResultadoTicket(false, 'Código vacío o con formato irreconocible.');
+    return;
+  }
+
+  const { data, error } = await sb.from('solicitudes_compra').select('*').eq('id', id).maybeSingle();
+
+  if(error || !data){
+    cont.innerHTML = renderResultadoTicket(false, 'Ese código no corresponde a ninguna compra registrada.');
+    return;
+  }
+  if(data.estado !== 'aprobada'){
+    cont.innerHTML = renderResultadoTicket(false, `Este ticket no figura como pagado (estado actual: ${data.estado}). No es válido para reclamar el premio.`, data);
+    return;
+  }
+  if(data.reclamado){
+    cont.innerHTML = renderResultadoTicket(false, `Este ticket ya fue reclamado el ${data.reclamado_at ? new Date(data.reclamado_at).toLocaleString() : ''}. No puede volver a reclamarse.`, data);
+    return;
+  }
+  cont.innerHTML = renderResultadoTicket(true, null, data);
+}
+
+function renderResultadoTicket(valido, mensaje, data){
+  if(!valido){
+    return `
+      <div class="card resultado-ticket invalido">
+        <h3>❌ Ticket inválido</h3>
+        <p>${mensaje}</p>
+        ${data ? `<p><b>${data.nombre_completo||'—'}</b> · números ${data.numeros.join(', ')}</p>` : ''}
+      </div>`;
+  }
+  return `
+    <div class="card resultado-ticket valido">
+      <h3>✅ Ticket válido — pagado y sin reclamar</h3>
+      <p><b>${data.nombre_completo || '—'}</b></p>
+      <p>${data.correo || ''} · DNI ${data.dni || '—'} · Tel ${data.telefono || '—'}</p>
+      <p><b>Números:</b> ${data.numeros.join(', ')}</p>
+      <button class="btn chico" id="btn-marcar-reclamado" data-id="${data.id}">Marcar como reclamado</button>
+    </div>`;
+}
+
+document.getElementById('ticket-resultado').addEventListener('click', async (e)=>{
+  if(e.target.id !== 'btn-marcar-reclamado') return;
+  if(!confirm('¿Confirmás que la persona ya retiró el premio con este ticket? No se puede deshacer.')) return;
+  const id = e.target.dataset.id;
+  const { error } = await sb.from('solicitudes_compra')
+    .update({ reclamado: true, reclamado_at: new Date().toISOString() })
+    .eq('id', id);
+  if(error){ toast('No se pudo marcar como reclamado'); return; }
+  toast('Ticket marcado como reclamado');
+  procesarCodigoTicket(id);
+});
 
 chequearSesion();
 </script>

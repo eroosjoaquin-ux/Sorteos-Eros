@@ -61,6 +61,11 @@
     margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
     border-radius:30px;font-weight:800;font-size:clamp(11px,1.7vh,13px);color:#04150a;text-decoration:none;
     background:linear-gradient(90deg,#00d4a0,#ffd166);flex-shrink:0;font-family:'Baloo 2',sans-serif;
+    animation:pulseComprar 1.8s ease-in-out infinite;
+  }
+  @keyframes pulseComprar{
+    0%,100%{ transform:scale(1); box-shadow:0 0 0 rgba(0,212,160,0); }
+    50%{ transform:scale(1.22); box-shadow:0 0 26px rgba(0,212,160,.75); }
   }
 
   /* ---------- CARTEL + PREMIO (combinados) ---------- */

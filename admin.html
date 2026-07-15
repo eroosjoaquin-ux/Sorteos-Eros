@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 <style>
   :root{
     --bg:#f3f2ee;--panel:#fff;--ink:#1d2420;--ink-soft:#636b65;--line:#e3e0d6;
@@ -136,6 +137,15 @@
   .resultado-ticket h3{font-size:1rem;}
   .resultado-ticket p{margin:4px 0;font-size:.86rem;}
 
+  .metricas-envio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .metrica-mini{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
+  .metrica-mini .num{font-size:1.4rem;font-weight:800;color:var(--verde);}
+  .metrica-mini .lbl{font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
+  #envio-log{background:#fdfdfb;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;font-size:.78rem;margin-top:12px;}
+  #envio-log .log-linea{padding:3px 0;border-bottom:1px dashed var(--line);}
+  #envio-log .log-ok{color:var(--verde);}
+  #envio-log .log-err{color:var(--rojo);}
+
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:.82rem;
@@ -143,6 +153,7 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
   .ayuda{color:var(--ink-soft);font-size:.78rem;margin:4px 0 10px;}
+  #envios-panel .campo,.panel[data-panel="envios"] .campo{margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -175,6 +186,7 @@
     <button class="tab-btn" data-tab="tablero">🔢 Tablero</button>
     <button class="tab-btn" data-tab="historial">🏆 Historial</button>
     <button class="tab-btn" data-tab="ticket">🎫 Ticket</button>
+    <button class="tab-btn" data-tab="envios">📨 Envíos</button>
   </div>
 
   <div class="tab-content">
@@ -277,7 +289,7 @@
     <section class="panel" data-panel="ticket">
       <div class="card bloque">
         <h2>Validar ticket</h2>
-        <p class="ayuda" style="margin-top:0">Escaneá el QR del ticket del ganador, o pegá el código a mano si la cámara falla.</p>
+        <p class="ayuda" style="margin-top:0">Escaneá el QR de cualquier ticket para verificar si es el número ganador del sorteo, o pegá el código a mano si la cámara falla.</p>
         <div class="fila-acciones">
           <button class="btn chico" id="btn-iniciar-scanner">📷 Iniciar cámara</button>
           <button class="btn secundario chico" id="btn-detener-scanner" style="display:none">Detener cámara</button>
@@ -292,6 +304,32 @@
         </div>
       </div>
       <div id="ticket-resultado"></div>
+    </section>
+
+    <!-- ENVÍOS -->
+    <section class="panel" data-panel="envios">
+      <div class="card bloque">
+        <h2>Envíos masivos</h2>
+        <p class="ayuda" style="margin-top:0">Le llega a toda la gente que alguna vez compró o se registró (de cualquier sorteo). Sirve para invitar a un sorteo nuevo o mandar un aviso.</p>
+
+        <div class="metricas-envio">
+          <div class="metrica-mini"><div class="num" id="env-total">–</div><div class="lbl">Contactos</div></div>
+          <div class="metrica-mini"><div class="num" id="env-enviados">–</div><div class="lbl">Ya recibieron</div></div>
+          <div class="metrica-mini"><div class="num" id="env-pendientes">–</div><div class="lbl">Pendientes</div></div>
+        </div>
+
+        <div class="campo"><label>Asunto</label><input id="env-asunto" placeholder="🎉 ¡Nuevo sorteo en marcha!"></div>
+        <div class="campo"><label>Mensaje</label><textarea id="env-mensaje" rows="5" placeholder="Escribí acá el texto del mail..."></textarea></div>
+        <div class="campo"><label>Link (opcional, muestra un botón "Ver ahora")</label><input id="env-link" placeholder="https://sorteos-eros.netlify.app/"></div>
+
+        <div class="fila-acciones">
+          <button class="btn chico" id="btn-enviar-tanda">Enviar tanda de 200</button>
+          <button class="btn secundario chico" id="btn-refrescar-contactos">Actualizar lista de contactos</button>
+          <button class="btn peligro chico" id="btn-resetear-envios">Marcar todos como pendientes</button>
+        </div>
+
+        <div id="envio-log"></div>
+      </div>
     </section>
 
   </div>
@@ -349,6 +387,7 @@ function toast(msg){
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     if(btn.dataset.tab !== 'ticket') detenerScanner();
+    if(btn.dataset.tab === 'envios') sincronizarContactos();
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('activo'));
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('activo'));
     btn.classList.add('activo');
@@ -709,31 +748,54 @@ async function procesarCodigoTicket(textoLeido){
     return;
   }
   if(data.estado !== 'aprobada'){
-    cont.innerHTML = renderResultadoTicket(false, `Este ticket no figura como pagado (estado actual: ${data.estado}). No es válido para reclamar el premio.`, data);
+    cont.innerHTML = renderResultadoTicket(false, `Este ticket no figura como pagado (estado actual: ${data.estado}). No es válido.`, data);
     return;
   }
+
+  const { data: sorteo } = await sb.from('sorteos').select('ganador_numero, ganador_nombre, premio_nombre').eq('id', data.sorteo_id).maybeSingle();
+
+  if(!sorteo || !sorteo.ganador_numero){
+    cont.innerHTML = renderResultadoTicket(false, 'Este sorteo todavía no se realizó. Todavía no hay ningún número ganador.', data);
+    return;
+  }
+
+  const esGanador = (data.numeros || []).includes(sorteo.ganador_numero);
+
+  if(!esGanador){
+    cont.innerHTML = renderResultadoTicket(false, `No es el número ganador. El número que salió sorteado fue el #${sorteo.ganador_numero}.`, data);
+    return;
+  }
+
   if(data.reclamado){
-    cont.innerHTML = renderResultadoTicket(false, `Este ticket ya fue reclamado el ${data.reclamado_at ? new Date(data.reclamado_at).toLocaleString() : ''}. No puede volver a reclamarse.`, data);
+    cont.innerHTML = renderResultadoTicket(false, `¡Es el ganador, pero este premio ya fue reclamado el ${data.reclamado_at ? new Date(data.reclamado_at).toLocaleString() : ''}! No puede volver a entregarse.`, data, true);
     return;
   }
-  cont.innerHTML = renderResultadoTicket(true, null, data);
+
+  cont.innerHTML = renderResultadoTicket(true, null, data, false, sorteo);
+  lanzarConfeti();
 }
 
-function renderResultadoTicket(valido, mensaje, data){
+function lanzarConfeti(){
+  if(typeof confetti !== 'function') return;
+  confetti({ particleCount: 140, spread: 90, origin: { y: 0.5 }, colors: ['#ffd166','#2f6f4f','#ff3d81','#b8901f'] });
+  setTimeout(()=> confetti({ particleCount: 80, spread: 120, origin: { y: 0.4 } }), 250);
+}
+
+function renderResultadoTicket(valido, mensaje, data, eraGanador, sorteo){
   if(!valido){
     return `
       <div class="card resultado-ticket invalido">
-        <h3>❌ Ticket inválido</h3>
+        <h3>❌ ${eraGanador ? 'Premio ya entregado' : 'No es un ganador válido'}</h3>
         <p>${mensaje}</p>
         ${data ? `<p><b>${data.nombre_completo||'—'}</b> · números ${data.numeros.join(', ')}</p>` : ''}
       </div>`;
   }
   return `
     <div class="card resultado-ticket valido">
-      <h3>✅ Ticket válido — pagado y sin reclamar</h3>
+      <h3>🎉 ¡GANADOR! #${sorteo.ganador_numero}${sorteo.premio_nombre ? ' · ' + sorteo.premio_nombre : ''}</h3>
       <p><b>${data.nombre_completo || '—'}</b></p>
       <p>${data.correo || ''} · DNI ${data.dni || '—'} · Tel ${data.telefono || '—'}</p>
-      <p><b>Números:</b> ${data.numeros.join(', ')}</p>
+      <p><b>Números del ticket:</b> ${data.numeros.join(', ')}</p>
       <button class="btn chico" id="btn-marcar-reclamado" data-id="${data.id}">Marcar como reclamado</button>
     </div>`;
 }
@@ -742,12 +804,141 @@ document.getElementById('ticket-resultado').addEventListener('click', async (e)=
   if(e.target.id !== 'btn-marcar-reclamado') return;
   if(!confirm('¿Confirmás que la persona ya retiró el premio con este ticket? No se puede deshacer.')) return;
   const id = e.target.dataset.id;
-  const { error } = await sb.from('solicitudes_compra')
+  const { data, error } = await sb.from('solicitudes_compra')
     .update({ reclamado: true, reclamado_at: new Date().toISOString() })
-    .eq('id', id);
-  if(error){ toast('No se pudo marcar como reclamado'); return; }
+    .eq('id', id)
+    .select();
+  if(error){ toast('No se pudo marcar: ' + error.message); return; }
+  if(!data || data.length === 0){ toast('No se pudo marcar (0 filas actualizadas, revisar permisos)'); return; }
   toast('Ticket marcado como reclamado');
   procesarCodigoTicket(id);
+});
+
+// ---------- ENVÍOS: contactos y tandas ----------
+const GAS_TICKET_URL_ENVIOS = "https://script.google.com/macros/s/AKfycbxHcy0SHygrWFjzD1FAtswvClLhJYn5XQ8j36QKQ_kmWkT0y1p7z-nYjSoHQWETjTTl/exec";
+const GAS_TOKEN_ENVIOS = "Eros_Sorteos_Ticket_2026_Prod";
+
+function logEnvio(msg, tipo){
+  const box = document.getElementById('envio-log');
+  const div = document.createElement('div');
+  div.className = 'log-linea ' + (tipo === 'err' ? 'log-err' : tipo === 'ok' ? 'log-ok' : '');
+  const hora = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  div.textContent = `[${hora}] ${msg}`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sincronizarContactos(){
+  // Trae todos los correos únicos de compras aprobadas (de todos los
+  // sorteos) y los agrega a contactos_envios si todavía no estaban.
+  // A los que ya existían no los toca (respeta si ya fueron enviados).
+  const { data: solicitudes, error } = await sb
+    .from('solicitudes_compra')
+    .select('correo, nombre_completo')
+    .eq('estado', 'aprobada');
+
+  if(error){ logEnvio('No se pudo sincronizar contactos: ' + error.message, 'err'); return; }
+
+  const vistos = new Map();
+  (solicitudes || []).forEach(s => {
+    const correo = String(s.correo || '').trim().toLowerCase();
+    if(correo && !vistos.has(correo)) vistos.set(correo, s.nombre_completo || '');
+  });
+
+  const { data: existentes } = await sb.from('contactos_envios').select('correo');
+  const yaExisten = new Set((existentes || []).map(c => c.correo));
+
+  const nuevos = Array.from(vistos.entries())
+    .filter(([correo]) => !yaExisten.has(correo))
+    .map(([correo, nombre]) => ({ correo, nombre }));
+
+  if(nuevos.length > 0){
+    const { error: insErr } = await sb.from('contactos_envios').insert(nuevos);
+    if(insErr){ logEnvio('No se pudieron guardar contactos nuevos: ' + insErr.message, 'err'); }
+    else { logEnvio(`${nuevos.length} contacto(s) nuevo(s) agregado(s).`, 'ok'); }
+  }
+
+  await cargarMetricasEnvios();
+}
+
+async function cargarMetricasEnvios(){
+  const { data, error } = await sb.from('contactos_envios').select('enviado');
+  if(error){ logEnvio('No se pudieron cargar las métricas: ' + error.message, 'err'); return; }
+  const total = (data || []).length;
+  const enviados = (data || []).filter(c => c.enviado).length;
+  document.getElementById('env-total').textContent = total;
+  document.getElementById('env-enviados').textContent = enviados;
+  document.getElementById('env-pendientes').textContent = total - enviados;
+}
+
+document.getElementById('btn-refrescar-contactos').addEventListener('click', async ()=>{
+  logEnvio('Sincronizando contactos...');
+  await sincronizarContactos();
+});
+
+document.getElementById('btn-resetear-envios').addEventListener('click', async ()=>{
+  if(!confirm('Esto marca a TODOS los contactos como pendientes otra vez, para poder mandarles una tanda nueva. ¿Confirmás?')) return;
+  const { error } = await sb.from('contactos_envios').update({ enviado: false, enviado_at: null }).eq('enviado', true);
+  if(error){ logEnvio('Error al resetear: ' + error.message, 'err'); return; }
+  logEnvio('Todos los contactos vuelven a estar pendientes.', 'ok');
+  cargarMetricasEnvios();
+});
+
+document.getElementById('btn-enviar-tanda').addEventListener('click', async ()=>{
+  const asunto = document.getElementById('env-asunto').value.trim() || '🎉 Sorteos Eros';
+  const mensaje = document.getElementById('env-mensaje').value.trim();
+  const link = document.getElementById('env-link').value.trim();
+
+  if(!mensaje){ toast('Escribí el mensaje antes de enviar'); return; }
+
+  const { data: pendientes, error } = await sb
+    .from('contactos_envios')
+    .select('correo, nombre')
+    .eq('enviado', false)
+    .limit(200);
+
+  if(error){ logEnvio('Error consultando contactos: ' + error.message, 'err'); return; }
+  if(!pendientes || pendientes.length === 0){ toast('No hay contactos pendientes. Actualizá la lista o reseteá.'); return; }
+
+  if(!confirm(`Vas a enviar ${pendientes.length} correo(s). ¿Confirmás?`)) return;
+
+  const btn = document.getElementById('btn-enviar-tanda');
+  btn.disabled = true;
+  logEnvio(`Iniciando envío de ${pendientes.length} correo(s)...`);
+
+  let enviados = 0, errores = 0;
+
+  for(let i=0;i<pendientes.length;i++){
+    const c = pendientes[i];
+    btn.textContent = `Enviando (${i+1}/${pendientes.length})...`;
+    try{
+      await fetch(GAS_TICKET_URL_ENVIOS, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          token: GAS_TOKEN_ENVIOS,
+          tipo: 'anuncio',
+          correo: c.correo,
+          nombre: c.nombre || '',
+          mensaje, link, asunto
+        })
+      });
+      await sb.from('contactos_envios').update({ enviado: true, enviado_at: new Date().toISOString() }).eq('correo', c.correo);
+      enviados++;
+      logEnvio(`Enviado a ${c.correo}`, 'ok');
+    }catch(err){
+      errores++;
+      logEnvio(`Error con ${c.correo}: ${err.message || err}`, 'err');
+    }
+    if(i < pendientes.length - 1) await new Promise(r => setTimeout(r, 1200));
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Enviar tanda de 200';
+  logEnvio(`Tanda completa: ${enviados} enviados, ${errores} errores.`, errores > 0 ? 'err' : 'ok');
+  toast(`Tanda completa: ${enviados} enviados`);
+  cargarMetricasEnvios();
 });
 
 chequearSesion();

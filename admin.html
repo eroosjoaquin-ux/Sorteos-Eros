@@ -267,6 +267,7 @@
         <h2>Enlaces manuales</h2>
         <div class="fila-acciones">
           <button class="btn oro chico" id="btn-generar-link">Generar link</button>
+          <button class="btn secundario chico" id="btn-limpiar-links">Limpiar todos</button>
         </div>
         <div id="links-lista" class="links-lista"></div>
       </div>
@@ -330,6 +331,12 @@
 
         <div id="envio-log"></div>
       </div>
+
+      <div class="card bloque">
+        <h2>Contactos</h2>
+        <p class="ayuda" style="margin-top:0">Tildado = ya recibió (no entra en la próxima tanda). Destildalo para que vuelva a recibir, o eliminalo si no querés que reciba más nada.</p>
+        <div id="contactos-lista"></div>
+      </div>
     </section>
 
   </div>
@@ -341,7 +348,6 @@
     <h3>Número <span id="mc-numero"></span></h3>
     <div class="campo"><label>Nombre completo</label><input id="mc-nombre"></div>
     <div class="campo"><label>Correo</label><input id="mc-correo"></div>
-    <div class="campo"><label>DNI</label><input id="mc-dni"></div>
     <div class="campo"><label>Teléfono</label><input id="mc-telefono"></div>
     <div class="campo"><label>Comprobante</label><br><a href="#" target="_blank" class="comprobante-link" id="mc-comprobante">Ver comprobante</a></div>
     <div class="acciones">
@@ -576,7 +582,6 @@ async function abrirModalComprador(n){
   document.getElementById('mc-numero').textContent = '#'+n.numero;
   document.getElementById('mc-nombre').value = n.nombre_completo || '';
   document.getElementById('mc-correo').value = n.correo || '';
-  document.getElementById('mc-dni').value = n.dni || '';
   document.getElementById('mc-telefono').value = n.telefono || '';
   document.getElementById('modal-comprador').classList.add('show');
 
@@ -606,7 +611,6 @@ document.getElementById('mc-guardar').addEventListener('click', async ()=>{
   const { error } = await sb.from('numeros').update({
     nombre_completo: document.getElementById('mc-nombre').value.trim(),
     correo: document.getElementById('mc-correo').value.trim(),
-    dni: document.getElementById('mc-dni').value.trim(),
     telefono: document.getElementById('mc-telefono').value.trim(),
   }).eq('id', numeroModalActual.id);
   toast(error ? 'No se pudo guardar' : 'Datos actualizados');
@@ -629,7 +633,7 @@ document.getElementById('gl-crear').addEventListener('click', async ()=>{
 
 async function cargarLinks(){
   const cont = document.getElementById('links-lista');
-  const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).order('creado_at',{ascending:false});
+  const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).eq('oculto', false).order('creado_at',{ascending:false});
   cont.innerHTML = '';
   (data||[]).forEach(l=>{
     const url = `${location.origin}${location.pathname.replace('admin.html','registro.html')}?token=${l.token}`;
@@ -644,15 +648,32 @@ async function cargarLinks(){
           Usados ${l.cantidad_usada}/${l.cantidad_permitida} · expira ${new Date(l.expira_at).toLocaleString()}
         </div>
       </div>
-      <button class="btn secundario chico" data-url="${url}">Copiar</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn secundario chico" data-url="${url}">Copiar</button>
+        <button class="btn peligro chico" data-id="${l.id}">Quitar</button>
+      </div>
     `;
-    item.querySelector('button').addEventListener('click', (e)=>{
+    item.querySelector('button[data-url]').addEventListener('click', (e)=>{
       navigator.clipboard.writeText(e.target.dataset.url);
       toast('Enlace copiado');
+    });
+    item.querySelector('button[data-id]').addEventListener('click', async (e)=>{
+      const { error } = await sb.from('links').update({ oculto: true }).eq('id', e.target.dataset.id);
+      if(error){ toast('No se pudo quitar de la lista'); return; }
+      toast('Quitado de la lista (el link sigue funcionando si alguien lo tiene)');
+      cargarLinks();
     });
     cont.appendChild(item);
   });
 }
+
+document.getElementById('btn-limpiar-links').addEventListener('click', async ()=>{
+  if(!confirm('Esto quita TODOS los links (usados y sin usar) de esta lista. No los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual. ¿Confirmás?')) return;
+  const { error } = await sb.from('links').update({ oculto: true }).eq('sorteo_id', sorteoActual.id).eq('oculto', false);
+  if(error){ toast('No se pudo limpiar la lista'); return; }
+  toast('Lista limpiada');
+  cargarLinks();
+});
 
 // ---------- SORTEAR ----------
 document.getElementById('btn-sortear').addEventListener('click', async ()=>{
@@ -862,13 +883,53 @@ async function sincronizarContactos(){
 }
 
 async function cargarMetricasEnvios(){
-  const { data, error } = await sb.from('contactos_envios').select('enviado');
+  const { data, error } = await sb.from('contactos_envios').select('*').order('creado_at', {ascending:false});
   if(error){ logEnvio('No se pudieron cargar las métricas: ' + error.message, 'err'); return; }
   const total = (data || []).length;
   const enviados = (data || []).filter(c => c.enviado).length;
   document.getElementById('env-total').textContent = total;
   document.getElementById('env-enviados').textContent = enviados;
   document.getElementById('env-pendientes').textContent = total - enviados;
+  dibujarContactos(data || []);
+}
+
+function dibujarContactos(contactos){
+  const cont = document.getElementById('contactos-lista');
+  cont.innerHTML = '';
+  if(contactos.length === 0){
+    cont.innerHTML = '<p class="ayuda">Todavía no hay contactos. Tocá "Actualizar lista de contactos".</p>';
+    return;
+  }
+  contactos.forEach(c=>{
+    const fila = document.createElement('div');
+    fila.className = 'item-fila';
+    fila.innerHTML = `
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
+        <input type="checkbox" data-correo="${c.correo}" ${c.enviado ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0">
+        <span>
+          <b>${c.nombre || c.correo}</b>
+          ${c.nombre ? `<br><span style="color:var(--ink-soft);font-size:.78rem">${c.correo}</span>` : ''}
+        </span>
+      </label>
+      <button class="btn peligro chico" data-borrar="${c.correo}">Eliminar</button>
+    `;
+    fila.querySelector('input[type="checkbox"]').addEventListener('change', async (e)=>{
+      const marcado = e.target.checked;
+      const { error } = await sb.from('contactos_envios')
+        .update({ enviado: marcado, enviado_at: marcado ? new Date().toISOString() : null })
+        .eq('correo', e.target.dataset.correo);
+      if(error){ toast('No se pudo actualizar'); e.target.checked = !marcado; return; }
+      cargarMetricasEnvios();
+    });
+    fila.querySelector('button[data-borrar]').addEventListener('click', async (e)=>{
+      if(!confirm(`¿Eliminar a ${e.target.dataset.borrar} de la lista de contactos? Ya no va a recibir más envíos masivos.`)) return;
+      const { error } = await sb.from('contactos_envios').delete().eq('correo', e.target.dataset.borrar);
+      if(error){ toast('No se pudo eliminar'); return; }
+      toast('Contacto eliminado');
+      cargarMetricasEnvios();
+    });
+    cont.appendChild(fila);
+  });
 }
 
 document.getElementById('btn-refrescar-contactos').addEventListener('click', async ()=>{

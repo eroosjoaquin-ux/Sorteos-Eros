@@ -659,7 +659,7 @@ document.getElementById('gl-crear').addEventListener('click', async ()=>{
   if(!cantidad || cantidad < 1){ toast('Cantidad inválida'); return; }
   const { error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
   document.getElementById('modal-link').classList.remove('show');
-  if(error){ toast('No se pudo generar el link'); return; }
+  if(error){ toast('No se pudo generar el link: ' + error.message); return; }
   toast('Enlace generado');
   cargarLinks();
 });
@@ -691,11 +691,11 @@ async function cargarLinks(){
       toast('Enlace copiado');
     });
     item.querySelector('button[data-id]').addEventListener('click', async (e)=>{
-      e.target.disabled = true;
-      const { error } = await sb.from('links').update({ oculto: true }).eq('id', e.target.dataset.id);
-      if(error){ toast('No se pudo quitar de la lista'); e.target.disabled = false; return; }
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const { error } = await sb.from('links').update({ oculto: true }).eq('id', btn.dataset.id);
+      if(error){ toast('No se pudo quitar de la lista: ' + error.message); btn.disabled = false; return; }
       item.remove();
-      toast('Quitado de la lista (el link sigue funcionando si alguien lo tiene)');
       if(!cont.children.length) cont.innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
     });
     cont.appendChild(item);
@@ -704,15 +704,13 @@ async function cargarLinks(){
 }
 
 document.getElementById('btn-limpiar-links').addEventListener('click', async ()=>{
-  if(!confirm('Esto quita TODOS los links (usados y sin usar) de esta lista. No los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual. ¿Confirmás?')) return;
+  if(!confirm('Esto oculta TODOS los links de esta lista (no los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual). ¿Confirmás?')) return;
   const btn = document.getElementById('btn-limpiar-links');
   btn.disabled = true;
   const { error } = await sb.from('links').update({ oculto: true }).eq('sorteo_id', sorteoActual.id).eq('oculto', false);
   btn.disabled = false;
-  if(error){ toast('No se pudo limpiar la lista'); return; }
+  if(error){ toast('No se pudo limpiar la lista: ' + error.message); return; }
   document.getElementById('links-lista').innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
-  toast('Lista limpiada');
-  cargarLinks();
 });
 
 // ---------- SORTEAR ----------

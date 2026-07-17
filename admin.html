@@ -65,7 +65,7 @@
   }
   .tab-btn.activo{background:var(--verde-suave);color:var(--verde);}
   .tab-content{flex:1 1 auto;min-height:0;padding:12px;overflow:hidden;}
-  .panel{height:100%;overflow-y:auto;display:none;}
+  .panel{height:100%;overflow-y:auto;display:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:28px;}
   .panel.activo{display:block;}
 
   /* ---------- DASHBOARD ---------- */
@@ -141,7 +141,7 @@
   .metrica-mini{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
   .metrica-mini .num{font-size:1.4rem;font-weight:800;color:var(--verde);}
   .metrica-mini .lbl{font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
-  #envio-log{background:#fdfdfb;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;font-size:.78rem;margin-top:12px;}
+  #envio-log{background:#fdfdfb;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;overscroll-behavior:contain;font-size:.78rem;margin-top:12px;}
   #envio-log .log-linea{padding:3px 0;border-bottom:1px dashed var(--line);}
   #envio-log .log-ok{color:var(--verde);}
   #envio-log .log-err{color:var(--rojo);}
@@ -154,6 +154,23 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
   .ayuda{color:var(--ink-soft);font-size:.78rem;margin:4px 0 10px;}
   #envios-panel .campo,.panel[data-panel="envios"] .campo{margin-bottom:12px;}
+
+  /* ---------- SUB-SOLAPAS (contactos) ---------- */
+  .subtabs{display:flex;gap:3px;background:var(--bg);border:1px solid var(--line);padding:3px;border-radius:10px;margin:2px 0 12px;}
+  .subtab-btn{flex:1;border:none;background:transparent;padding:8px 10px;border-radius:7px;font-weight:700;font-size:.78rem;color:var(--ink-soft);transition:background .15s,color .15s;}
+  .subtab-btn.activo{background:#fff;color:var(--verde);box-shadow:0 2px 6px -2px rgba(29,36,32,.18);}
+  .subpanel{display:none;}
+  .subpanel.activo{display:block;}
+  .contacto-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:.78rem;margin-bottom:7px;}
+  .contacto-fila:last-child{margin-bottom:0;}
+  .contacto-fila .info{flex:1;min-width:0;}
+  .contacto-fila .info b{display:block;}
+  .contacto-fila .info span{color:var(--ink-soft);font-size:.78rem;}
+  .contacto-fila input[type="checkbox"]{width:19px;height:19px;flex-shrink:0;accent-color:var(--verde);}
+  .contacto-fila.marcado-eliminar{border-color:#e6b2ac;background:#fbf1ef;}
+  .contacto-fila.marcado-eliminar input[type="checkbox"]{accent-color:var(--rojo);}
+  .barra-eliminar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .barra-eliminar .contador{font-size:.76rem;color:var(--ink-soft);font-weight:700;}
 </style>
 </head>
 <body>
@@ -334,8 +351,24 @@
 
       <div class="card bloque">
         <h2>Contactos</h2>
-        <p class="ayuda" style="margin-top:0">Tildado = ya recibió (no entra en la próxima tanda). Destildalo para que vuelva a recibir, o eliminalo si no querés que reciba más nada.</p>
-        <div id="contactos-lista"></div>
+        <div class="subtabs">
+          <button class="subtab-btn activo" data-subtab="ver">Contactos</button>
+          <button class="subtab-btn" data-subtab="eliminar">Eliminar</button>
+        </div>
+
+        <div class="subpanel activo" data-subpanel="ver">
+          <p class="ayuda" style="margin-top:0">Tildado = ya recibió (no entra en la próxima tanda). Destildalo para que vuelva a recibir.</p>
+          <div id="contactos-lista"></div>
+        </div>
+
+        <div class="subpanel" data-subpanel="eliminar">
+          <p class="ayuda" style="margin-top:0">Tildá los contactos que querés eliminar de la lista y confirmá abajo.</p>
+          <div id="contactos-eliminar-lista"></div>
+          <div class="barra-eliminar">
+            <span class="contador" id="eliminar-contador">0 seleccionados</span>
+            <button class="btn peligro chico" id="btn-eliminar-seleccionados" disabled>Eliminar seleccionados</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -658,19 +691,26 @@ async function cargarLinks(){
       toast('Enlace copiado');
     });
     item.querySelector('button[data-id]').addEventListener('click', async (e)=>{
+      e.target.disabled = true;
       const { error } = await sb.from('links').update({ oculto: true }).eq('id', e.target.dataset.id);
-      if(error){ toast('No se pudo quitar de la lista'); return; }
+      if(error){ toast('No se pudo quitar de la lista'); e.target.disabled = false; return; }
+      item.remove();
       toast('Quitado de la lista (el link sigue funcionando si alguien lo tiene)');
-      cargarLinks();
+      if(!cont.children.length) cont.innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
     });
     cont.appendChild(item);
   });
+  if(!(data||[]).length) cont.innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
 }
 
 document.getElementById('btn-limpiar-links').addEventListener('click', async ()=>{
   if(!confirm('Esto quita TODOS los links (usados y sin usar) de esta lista. No los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual. ¿Confirmás?')) return;
+  const btn = document.getElementById('btn-limpiar-links');
+  btn.disabled = true;
   const { error } = await sb.from('links').update({ oculto: true }).eq('sorteo_id', sorteoActual.id).eq('oculto', false);
+  btn.disabled = false;
   if(error){ toast('No se pudo limpiar la lista'); return; }
+  document.getElementById('links-lista').innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
   toast('Lista limpiada');
   cargarLinks();
 });
@@ -911,7 +951,6 @@ function dibujarContactos(contactos){
           ${c.nombre ? `<br><span style="color:var(--ink-soft);font-size:.78rem">${c.correo}</span>` : ''}
         </span>
       </label>
-      <button class="btn peligro chico" data-borrar="${c.correo}">Eliminar</button>
     `;
     fila.querySelector('input[type="checkbox"]').addEventListener('change', async (e)=>{
       const marcado = e.target.checked;
@@ -921,16 +960,79 @@ function dibujarContactos(contactos){
       if(error){ toast('No se pudo actualizar'); e.target.checked = !marcado; return; }
       cargarMetricasEnvios();
     });
-    fila.querySelector('button[data-borrar]').addEventListener('click', async (e)=>{
-      if(!confirm(`¿Eliminar a ${e.target.dataset.borrar} de la lista de contactos? Ya no va a recibir más envíos masivos.`)) return;
-      const { error } = await sb.from('contactos_envios').delete().eq('correo', e.target.dataset.borrar);
-      if(error){ toast('No se pudo eliminar'); return; }
-      toast('Contacto eliminado');
-      cargarMetricasEnvios();
-    });
     cont.appendChild(fila);
   });
+
+  dibujarContactosEliminar(contactos);
 }
+
+// ---------- SUB-SOLAPA "ELIMINAR" ----------
+let correosParaEliminar = new Set();
+
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const contenedor = btn.closest('.card');
+    contenedor.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('activo'));
+    contenedor.querySelectorAll('.subpanel').forEach(p=>p.classList.remove('activo'));
+    btn.classList.add('activo');
+    contenedor.querySelector(`.subpanel[data-subpanel="${btn.dataset.subtab}"]`).classList.add('activo');
+  });
+});
+
+function dibujarContactosEliminar(contactos){
+  const cont = document.getElementById('contactos-eliminar-lista');
+  cont.innerHTML = '';
+
+  // Descarta de la selección los correos que ya no existen en la lista actual
+  const correosActuales = new Set(contactos.map(c => c.correo));
+  correosParaEliminar.forEach(correo => { if(!correosActuales.has(correo)) correosParaEliminar.delete(correo); });
+
+  if(contactos.length === 0){
+    cont.innerHTML = '<p class="ayuda">No hay contactos para eliminar.</p>';
+  } else {
+    contactos.forEach(c=>{
+      const marcado = correosParaEliminar.has(c.correo);
+      const fila = document.createElement('div');
+      fila.className = 'contacto-fila' + (marcado ? ' marcado-eliminar' : '');
+      fila.innerHTML = `
+        <div class="info">
+          <b>${c.nombre || c.correo}</b>
+          ${c.nombre ? `<span>${c.correo}</span>` : ''}
+        </div>
+        <input type="checkbox" data-correo="${c.correo}" ${marcado ? 'checked' : ''}>
+      `;
+      fila.querySelector('input[type="checkbox"]').addEventListener('change', (e)=>{
+        const correo = e.target.dataset.correo;
+        if(e.target.checked){ correosParaEliminar.add(correo); fila.classList.add('marcado-eliminar'); }
+        else { correosParaEliminar.delete(correo); fila.classList.remove('marcado-eliminar'); }
+        actualizarBarraEliminar();
+      });
+      cont.appendChild(fila);
+    });
+  }
+
+  actualizarBarraEliminar();
+}
+
+function actualizarBarraEliminar(){
+  const n = correosParaEliminar.size;
+  document.getElementById('eliminar-contador').textContent = n === 1 ? '1 seleccionado' : `${n} seleccionados`;
+  document.getElementById('btn-eliminar-seleccionados').disabled = n === 0;
+}
+
+document.getElementById('btn-eliminar-seleccionados').addEventListener('click', async ()=>{
+  const correos = Array.from(correosParaEliminar);
+  if(correos.length === 0) return;
+  const detalle = correos.length === 1 ? correos[0] : `${correos.length} contactos`;
+  if(!confirm(`¿Eliminar a ${detalle} de la lista de contactos? Ya no van a recibir más envíos masivos.`)) return;
+
+  const { error } = await sb.from('contactos_envios').delete().in('correo', correos);
+  if(error){ toast('No se pudo eliminar'); return; }
+
+  toast(correos.length === 1 ? 'Contacto eliminado' : `${correos.length} contactos eliminados`);
+  correosParaEliminar.clear();
+  cargarMetricasEnvios();
+});
 
 document.getElementById('btn-refrescar-contactos').addEventListener('click', async ()=>{
   logEnvio('Sincronizando contactos...');

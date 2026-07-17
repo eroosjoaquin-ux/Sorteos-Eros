@@ -104,7 +104,6 @@
       <p class="eyebrow">Tus datos</p>
       <div class="campo"><label>Nombre completo</label><input id="f-nombre" placeholder="Nombre y apellido"></div>
       <div class="campo"><label>Correo electrónico</label><input id="f-correo" type="email" placeholder="tu@correo.com"></div>
-      <div class="campo"><label>DNI</label><input id="f-dni" placeholder="Documento"></div>
       <div class="campo"><label>Teléfono</label><input id="f-telefono" placeholder="Con código de área"></div>
       <div class="campo">
         <label>Comprobante de pago (imagen o PDF) · opcional</label>
@@ -215,13 +214,12 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
   mostrarErrorForm('');
   const nombre = document.getElementById('f-nombre').value.trim();
   const correo = document.getElementById('f-correo').value.trim();
-  const dni = document.getElementById('f-dni').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   const fileInput = document.getElementById('f-comprobante');
   const file = fileInput.files[0];
 
   if(seleccionados.size === 0){ mostrarErrorForm('Elegí al menos un número.'); return; }
-  if(!nombre || !correo || !dni || !telefono){ mostrarErrorForm('Completá todos los datos.'); return; }
+  if(!nombre || !correo || !telefono){ mostrarErrorForm('Completá todos los datos.'); return; }
 
   if(file){
     const extensionesValidas = ['jpg','jpeg','png','pdf'];
@@ -246,7 +244,6 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
       p_numeros: Array.from(seleccionados),
       p_nombre: nombre,
       p_correo: correo,
-      p_dni: dni,
       p_telefono: telefono,
       p_comprobante_url: comprobantePath
     });
@@ -265,7 +262,7 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
         body: JSON.stringify({
           sorteo_id: linkInfo.sorteo_id,
           numeros: Array.from(seleccionados),
-          nombre, correo, dni, telefono,
+          nombre, correo, telefono,
           premio_nombre: linkInfo.premio_nombre
         })
       });

@@ -693,7 +693,7 @@ async function cargarLinks(){
   const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).eq('oculto', false).order('creado_at',{ascending:false});
   cont.innerHTML = '';
   (data||[]).forEach(l=>{
-    const url = `${location.origin}${location.pathname.replace('admin.html','registro.html')}?token=${l.token}`;
+    const url = `${new URL('registro.html', location.href)}?token=${l.token}`;
     const vigente = l.activo && new Date(l.expira_at) > new Date();
     const item = document.createElement('div');
     item.className = 'item-fila';

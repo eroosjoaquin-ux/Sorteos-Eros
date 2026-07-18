@@ -138,6 +138,15 @@
     <br>
     <a class="btn" style="display:inline-block;text-decoration:none;width:auto;padding:14px 26px" href="comprar.html">Intentar de nuevo</a>
   </div>
+
+  <!-- VISTA: no hay sorteo activo / sin premio cargado -->
+  <div class="card estado-box" id="vista-sin-sorteo" style="display:none">
+    <div class="icon">⏳</div>
+    <h2>Todavía no se puede comprar</h2>
+    <p id="sin-sorteo-detalle">No hay un sorteo activo en este momento.</p>
+    <br>
+    <a class="btn" style="display:inline-block;text-decoration:none;width:auto;padding:14px 26px" href="index.html">Volver al sorteo</a>
+  </div>
 </div>
 
 <footer>Sorteos Eros · pago seguro procesado por Mercado Pago</footer>
@@ -155,7 +164,7 @@ let numerosPendientes = new Set();
 let seleccionados = new Set();
 
 function mostrarSolo(id){
-  ['vista-compra','vista-esperando','vista-aprobado','vista-rechazado'].forEach(v=>{
+  ['vista-compra','vista-esperando','vista-aprobado','vista-rechazado','vista-sin-sorteo'].forEach(v=>{
     document.getElementById(v).style.display = (v===id) ? 'block' : 'none';
   });
 }
@@ -212,22 +221,22 @@ function mostrarRechazado(titulo, detalle){
 }
 
 async function cargarFormulario(){
-  const { data: config } = await sb.from('config').select('precio_numero').eq('id',1).single();
-  precio = Number(config?.precio_numero || 0);
-  document.getElementById('precio-txt').textContent = '$' + precio.toLocaleString('es-AR');
-
   const { data: sorteo } = await sb.from('sorteos').select('id,premio_nombre').eq('estado','activo').order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(!sorteo){
-    document.getElementById('btn-pagar').disabled = true;
-    mostrarErrorForm('No hay un sorteo activo en este momento.');
+    document.getElementById('sin-sorteo-detalle').textContent = 'No hay un sorteo activo en este momento.';
+    mostrarSolo('vista-sin-sorteo');
     return;
   }
   if(!sorteo.premio_nombre || !sorteo.premio_nombre.trim()){
-    document.getElementById('btn-pagar').disabled = true;
-    mostrarErrorForm('El organizador todavía no cargó el premio de este sorteo.');
+    document.getElementById('sin-sorteo-detalle').textContent = 'El organizador todavía no cargó el premio de este sorteo.';
+    mostrarSolo('vista-sin-sorteo');
     return;
   }
   window.sorteoId = sorteo.id;
+
+  const { data: config } = await sb.from('config').select('precio_numero').eq('id',1).single();
+  precio = Number(config?.precio_numero || 0);
+  document.getElementById('precio-txt').textContent = '$' + precio.toLocaleString('es-AR');
 
   const { data: numeros } = await sb.from('numeros_publicos').select('numero,vendido').eq('sorteo_id', sorteo.id);
   (numeros||[]).forEach(n=>{ if(n.vendido) numerosVendidos.add(n.numero); });

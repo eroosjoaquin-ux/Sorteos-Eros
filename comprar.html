@@ -216,10 +216,15 @@ async function cargarFormulario(){
   precio = Number(config?.precio_numero || 0);
   document.getElementById('precio-txt').textContent = '$' + precio.toLocaleString('es-AR');
 
-  const { data: sorteo } = await sb.from('sorteos').select('id').eq('estado','activo').order('created_at',{ascending:false}).limit(1).maybeSingle();
+  const { data: sorteo } = await sb.from('sorteos').select('id,premio_nombre').eq('estado','activo').order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(!sorteo){
     document.getElementById('btn-pagar').disabled = true;
     mostrarErrorForm('No hay un sorteo activo en este momento.');
+    return;
+  }
+  if(!sorteo.premio_nombre || !sorteo.premio_nombre.trim()){
+    document.getElementById('btn-pagar').disabled = true;
+    mostrarErrorForm('El organizador todavía no cargó el premio de este sorteo.');
     return;
   }
   window.sorteoId = sorteo.id;

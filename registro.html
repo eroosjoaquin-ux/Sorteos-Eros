@@ -146,7 +146,8 @@ function mostrarInvalido(motivo){
   const textos = {
     no_existe: 'El enlace no existe. Revisá que lo hayas copiado completo.',
     usado: 'Este enlace ya alcanzó su límite de números y fue cerrado.',
-    expirado: 'Este enlace superó las 24 horas de validez.'
+    expirado: 'Este enlace superó las 24 horas de validez.',
+    sorteo_cerrado: 'Este sorteo ya se cerró (se realizó el sorteo o se inició uno nuevo). Pedile al organizador un enlace nuevo.'
   };
   document.getElementById('motivo-invalido').textContent = textos[motivo] || 'Pedile al organizador un nuevo enlace de registro.';
   document.getElementById('vista-invalido').style.display = 'block';
@@ -248,7 +249,11 @@ document.getElementById('btn-confirmar').addEventListener('click', async ()=>{
       p_comprobante_url: comprobantePath
     });
 
-    if(error) throw new Error(error.message.includes('disponibles') ? 'Uno de los números elegidos ya fue tomado por otra persona. Volvé a intentar.' : 'No se pudo completar el registro.');
+    if(error) throw new Error(
+      error.message.includes('disponibles') ? 'Uno de los números elegidos ya fue tomado por otra persona. Volvé a intentar.' :
+      error.message.includes('sorteo ya no está activo') ? 'El sorteo se cerró justo mientras completabas el formulario. Pedile al organizador un enlace nuevo.' :
+      'No se pudo completar el registro.'
+    );
 
     // El registro ya está 100% confirmado en este punto (el RPC no tiró
     // error). Recién ACÁ, nunca antes, disparamos el envío del ticket.

@@ -481,6 +481,17 @@ async function cargarTodo(){
     await cargarLinks();
     await cargarSolicitudes();
     actualizarBotones();
+  } else {
+    document.getElementById('s-estado').textContent = 'Sin sorteo activo';
+    document.getElementById('s-vendidos').textContent = '–';
+    document.getElementById('s-disponibles').textContent = '–';
+    document.getElementById('s-porcentaje').textContent = '–';
+    document.getElementById('tablero').innerHTML = '';
+    document.getElementById('links-lista').innerHTML = '<p class="ayuda">No hay un sorteo activo en este momento.</p>';
+    document.getElementById('solicitudes-lista').innerHTML = '<p class="ayuda">No hay un sorteo activo en este momento.</p>';
+    document.getElementById('btn-generar-link').disabled = true;
+    document.getElementById('btn-sortear').disabled = true;
+    document.getElementById('btn-nuevo-sorteo').disabled = true;
   }
   await cargarHistorial();
 }
@@ -511,6 +522,7 @@ function actualizarBotones(){
   const vendidos = numerosActuales.filter(n=>n.vendido).length;
   document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
+  document.getElementById('btn-generar-link').disabled = sorteoActual.estado !== 'activo';
 }
 
 // ---------- AVATAR ----------
@@ -547,14 +559,15 @@ async function cargarSolicitudes(){
   }
   const badges = { pendiente_pago:['espera','Esperando pago'], aprobada:['ok','Aprobada'], rechazada:['no','Rechazada'], expirada:['no','Expirada'], conflicto:['conflicto','Conflicto'] };
   data.forEach(s=>{
-    const [cls, txt] = badges[s.estado] || ['no', s.estado];
+    const resuelta = s.estado === 'rechazada' && s.resuelto_manual;
+    const [cls, txt] = resuelta ? ['ok','Conflicto resuelto'] : (badges[s.estado] || ['no', s.estado]);
     const item = document.createElement('div');
     item.className = 'item-fila';
     item.innerHTML = `
       <div>
         <span class="badge ${cls}">${txt}</span>
         <div style="margin-top:4px">${s.nombre_completo} · números ${s.numeros.join(', ')} · $${Number(s.monto).toLocaleString('es-AR')}</div>
-        <div class="url">${new Date(s.creado_at).toLocaleString()}</div>
+        <div class="url">${new Date(s.creado_at).toLocaleString()}${resuelta && s.resuelto_manual_at ? ' · resuelto ' + new Date(s.resuelto_manual_at).toLocaleString() : ''}</div>
       </div>
       ${s.estado==='conflicto' ? '<button class="btn peligro chico" data-id="'+s.id+'">Marcar resuelto</button>' : ''}
     `;
@@ -562,7 +575,7 @@ async function cargarSolicitudes(){
     if(btnResolver){
       btnResolver.addEventListener('click', async ()=>{
         if(!confirm('¿Ya reembolsaste o resolviste este conflicto manualmente con el comprador?')) return;
-        await sb.from('solicitudes_compra').update({ estado:'rechazada' }).eq('id', s.id);
+        await sb.from('solicitudes_compra').update({ estado:'rechazada', resuelto_manual: true, resuelto_manual_at: new Date().toISOString() }).eq('id', s.id);
         toast('Marcado como resuelto');
         cargarSolicitudes();
       });
@@ -652,9 +665,20 @@ document.getElementById('mc-guardar').addEventListener('click', async ()=>{
 });
 
 // ---------- GENERAR LINK ----------
-document.getElementById('btn-generar-link').addEventListener('click', ()=> document.getElementById('modal-link').classList.add('show'));
+document.getElementById('btn-generar-link').addEventListener('click', ()=>{
+  if(!sorteoActual || sorteoActual.estado !== 'activo'){
+    toast('No hay un sorteo activo en este momento.');
+    return;
+  }
+  document.getElementById('modal-link').classList.add('show');
+});
 document.getElementById('gl-cancelar').addEventListener('click', ()=> document.getElementById('modal-link').classList.remove('show'));
 document.getElementById('gl-crear').addEventListener('click', async ()=>{
+  if(!sorteoActual || sorteoActual.estado !== 'activo'){
+    document.getElementById('modal-link').classList.remove('show');
+    toast('No hay un sorteo activo en este momento.');
+    return;
+  }
   const cantidad = parseInt(document.getElementById('gl-cantidad').value, 10);
   if(!cantidad || cantidad < 1){ toast('Cantidad inválida'); return; }
   const { error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
@@ -704,6 +728,7 @@ async function cargarLinks(){
 }
 
 document.getElementById('btn-limpiar-links').addEventListener('click', async ()=>{
+  if(!sorteoActual){ toast('No hay un sorteo activo en este momento.'); return; }
   if(!confirm('Esto oculta TODOS los links de esta lista (no los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual). ¿Confirmás?')) return;
   const btn = document.getElementById('btn-limpiar-links');
   btn.disabled = true;
@@ -874,8 +899,7 @@ document.getElementById('ticket-resultado').addEventListener('click', async (e)=
 });
 
 // ---------- ENVÍOS: contactos y tandas ----------
-const GAS_TICKET_URL_ENVIOS = "https://script.google.com/macros/s/AKfycbxHcy0SHygrWFjzD1FAtswvClLhJYn5XQ8j36QKQ_kmWkT0y1p7z-nYjSoHQWETjTTl/exec";
-const GAS_TOKEN_ENVIOS = "Eros_Sorteos_Ticket_2026_Prod";
+const ENVIAR_ANUNCIO_URL = SUPABASE_URL + "/functions/v1/enviar-anuncio";
 
 function logEnvio(msg, tipo){
   const box = document.getElementById('envio-log');
@@ -1067,24 +1091,37 @@ document.getElementById('btn-enviar-tanda').addEventListener('click', async ()=>
   btn.disabled = true;
   logEnvio(`Iniciando envío de ${pendientes.length} correo(s)...`);
 
+  const { data: sesion } = await sb.auth.getSession();
+  const accessToken = sesion?.session?.access_token;
+  if(!accessToken){
+    logEnvio('No hay sesión activa, volvé a iniciar sesión.', 'err');
+    btn.disabled = false;
+    return;
+  }
+
   let enviados = 0, errores = 0;
 
   for(let i=0;i<pendientes.length;i++){
     const c = pendientes[i];
     btn.textContent = `Enviando (${i+1}/${pendientes.length})...`;
     try{
-      await fetch(GAS_TICKET_URL_ENVIOS, {
+      const res = await fetch(ENVIAR_ANUNCIO_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + accessToken
+        },
         body: JSON.stringify({
-          token: GAS_TOKEN_ENVIOS,
-          tipo: 'anuncio',
           correo: c.correo,
           nombre: c.nombre || '',
           mensaje, link, asunto
         })
       });
+      const data = await res.json().catch(()=>null);
+      if(!data || data.ok !== true){
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
       await sb.from('contactos_envios').update({ enviado: true, enviado_at: new Date().toISOString() }).eq('correo', c.correo);
       enviados++;
       logEnvio(`Enviado a ${c.correo}`, 'ok');

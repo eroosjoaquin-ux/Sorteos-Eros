@@ -147,7 +147,8 @@ function mostrarInvalido(motivo){
     no_existe: 'El enlace no existe. Revisá que lo hayas copiado completo.',
     usado: 'Este enlace ya alcanzó su límite de números y fue cerrado.',
     expirado: 'Este enlace superó las 24 horas de validez.',
-    sorteo_cerrado: 'Este sorteo ya se cerró (se realizó el sorteo o se inició uno nuevo). Pedile al organizador un enlace nuevo.'
+    sorteo_cerrado: 'Este sorteo ya se cerró (se realizó el sorteo o se inició uno nuevo). Pedile al organizador un enlace nuevo.',
+    sin_premio: 'El organizador todavía no cargó el premio de este sorteo. Pedile un enlace nuevo cuando esté listo.'
   };
   document.getElementById('motivo-invalido').textContent = textos[motivo] || 'Pedile al organizador un nuevo enlace de registro.';
   document.getElementById('vista-invalido').style.display = 'block';

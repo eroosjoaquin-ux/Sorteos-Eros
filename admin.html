@@ -65,7 +65,7 @@
   }
   .tab-btn.activo{background:var(--verde-suave);color:var(--verde);}
   .tab-content{flex:1 1 auto;min-height:0;padding:12px;overflow:hidden;}
-  .panel{height:100%;overflow-y:auto;display:none;}
+  .panel{height:100%;overflow-y:auto;display:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:28px;}
   .panel.activo{display:block;}
 
   /* ---------- DASHBOARD ---------- */
@@ -141,7 +141,7 @@
   .metrica-mini{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
   .metrica-mini .num{font-size:1.4rem;font-weight:800;color:var(--verde);}
   .metrica-mini .lbl{font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
-  #envio-log{background:#fdfdfb;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;font-size:.78rem;margin-top:12px;}
+  #envio-log{background:#fdfdfb;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;overscroll-behavior:contain;font-size:.78rem;margin-top:12px;}
   #envio-log .log-linea{padding:3px 0;border-bottom:1px dashed var(--line);}
   #envio-log .log-ok{color:var(--verde);}
   #envio-log .log-err{color:var(--rojo);}
@@ -154,6 +154,23 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
   .ayuda{color:var(--ink-soft);font-size:.78rem;margin:4px 0 10px;}
   #envios-panel .campo,.panel[data-panel="envios"] .campo{margin-bottom:12px;}
+
+  /* ---------- SUB-SOLAPAS (contactos) ---------- */
+  .subtabs{display:flex;gap:3px;background:var(--bg);border:1px solid var(--line);padding:3px;border-radius:10px;margin:2px 0 12px;}
+  .subtab-btn{flex:1;border:none;background:transparent;padding:8px 10px;border-radius:7px;font-weight:700;font-size:.78rem;color:var(--ink-soft);transition:background .15s,color .15s;}
+  .subtab-btn.activo{background:#fff;color:var(--verde);box-shadow:0 2px 6px -2px rgba(29,36,32,.18);}
+  .subpanel{display:none;}
+  .subpanel.activo{display:block;}
+  .contacto-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:.78rem;margin-bottom:7px;}
+  .contacto-fila:last-child{margin-bottom:0;}
+  .contacto-fila .info{flex:1;min-width:0;}
+  .contacto-fila .info b{display:block;}
+  .contacto-fila .info span{color:var(--ink-soft);font-size:.78rem;}
+  .contacto-fila input[type="checkbox"]{width:19px;height:19px;flex-shrink:0;accent-color:var(--verde);}
+  .contacto-fila.marcado-eliminar{border-color:#e6b2ac;background:#fbf1ef;}
+  .contacto-fila.marcado-eliminar input[type="checkbox"]{accent-color:var(--rojo);}
+  .barra-eliminar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .barra-eliminar .contador{font-size:.76rem;color:var(--ink-soft);font-weight:700;}
 </style>
 </head>
 <body>
@@ -267,6 +284,7 @@
         <h2>Enlaces manuales</h2>
         <div class="fila-acciones">
           <button class="btn oro chico" id="btn-generar-link">Generar link</button>
+          <button class="btn secundario chico" id="btn-limpiar-links">Limpiar todos</button>
         </div>
         <div id="links-lista" class="links-lista"></div>
       </div>
@@ -320,7 +338,7 @@
 
         <div class="campo"><label>Asunto</label><input id="env-asunto" placeholder="🎉 ¡Nuevo sorteo en marcha!"></div>
         <div class="campo"><label>Mensaje</label><textarea id="env-mensaje" rows="5" placeholder="Escribí acá el texto del mail..."></textarea></div>
-        <div class="campo"><label>Link (opcional, muestra un botón "Ver ahora")</label><input id="env-link" placeholder="https://sorteos-eros.netlify.app/"></div>
+        <div class="campo"><label>Link (opcional, muestra un botón "Ver ahora")</label><input id="env-link" placeholder="https://eroosjoaquin-ux.github.io/Sorteos-Eros/"></div>
 
         <div class="fila-acciones">
           <button class="btn chico" id="btn-enviar-tanda">Enviar tanda de 200</button>
@@ -329,6 +347,28 @@
         </div>
 
         <div id="envio-log"></div>
+      </div>
+
+      <div class="card bloque">
+        <h2>Contactos</h2>
+        <div class="subtabs">
+          <button class="subtab-btn activo" data-subtab="ver">Contactos</button>
+          <button class="subtab-btn" data-subtab="eliminar">Eliminar</button>
+        </div>
+
+        <div class="subpanel activo" data-subpanel="ver">
+          <p class="ayuda" style="margin-top:0">Tildado = ya recibió (no entra en la próxima tanda). Destildalo para que vuelva a recibir.</p>
+          <div id="contactos-lista"></div>
+        </div>
+
+        <div class="subpanel" data-subpanel="eliminar">
+          <p class="ayuda" style="margin-top:0">Tildá los contactos que querés eliminar de la lista y confirmá abajo.</p>
+          <div id="contactos-eliminar-lista"></div>
+          <div class="barra-eliminar">
+            <span class="contador" id="eliminar-contador">0 seleccionados</span>
+            <button class="btn peligro chico" id="btn-eliminar-seleccionados" disabled>Eliminar seleccionados</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -341,7 +381,6 @@
     <h3>Número <span id="mc-numero"></span></h3>
     <div class="campo"><label>Nombre completo</label><input id="mc-nombre"></div>
     <div class="campo"><label>Correo</label><input id="mc-correo"></div>
-    <div class="campo"><label>DNI</label><input id="mc-dni"></div>
     <div class="campo"><label>Teléfono</label><input id="mc-telefono"></div>
     <div class="campo"><label>Comprobante</label><br><a href="#" target="_blank" class="comprobante-link" id="mc-comprobante">Ver comprobante</a></div>
     <div class="acciones">
@@ -442,6 +481,17 @@ async function cargarTodo(){
     await cargarLinks();
     await cargarSolicitudes();
     actualizarBotones();
+  } else {
+    document.getElementById('s-estado').textContent = 'Sin sorteo activo';
+    document.getElementById('s-vendidos').textContent = '–';
+    document.getElementById('s-disponibles').textContent = '–';
+    document.getElementById('s-porcentaje').textContent = '–';
+    document.getElementById('tablero').innerHTML = '';
+    document.getElementById('links-lista').innerHTML = '<p class="ayuda">No hay un sorteo activo en este momento.</p>';
+    document.getElementById('solicitudes-lista').innerHTML = '<p class="ayuda">No hay un sorteo activo en este momento.</p>';
+    document.getElementById('btn-generar-link').disabled = true;
+    document.getElementById('btn-sortear').disabled = true;
+    document.getElementById('btn-nuevo-sorteo').disabled = true;
   }
   await cargarHistorial();
 }
@@ -472,6 +522,7 @@ function actualizarBotones(){
   const vendidos = numerosActuales.filter(n=>n.vendido).length;
   document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
+  document.getElementById('btn-generar-link').disabled = sorteoActual.estado !== 'activo' || !sorteoActual.premio_nombre || !sorteoActual.premio_nombre.trim();
 }
 
 // ---------- AVATAR ----------
@@ -508,14 +559,15 @@ async function cargarSolicitudes(){
   }
   const badges = { pendiente_pago:['espera','Esperando pago'], aprobada:['ok','Aprobada'], rechazada:['no','Rechazada'], expirada:['no','Expirada'], conflicto:['conflicto','Conflicto'] };
   data.forEach(s=>{
-    const [cls, txt] = badges[s.estado] || ['no', s.estado];
+    const resuelta = s.estado === 'rechazada' && s.resuelto_manual;
+    const [cls, txt] = resuelta ? ['ok','Conflicto resuelto'] : (badges[s.estado] || ['no', s.estado]);
     const item = document.createElement('div');
     item.className = 'item-fila';
     item.innerHTML = `
       <div>
         <span class="badge ${cls}">${txt}</span>
         <div style="margin-top:4px">${s.nombre_completo} · números ${s.numeros.join(', ')} · $${Number(s.monto).toLocaleString('es-AR')}</div>
-        <div class="url">${new Date(s.creado_at).toLocaleString()}</div>
+        <div class="url">${new Date(s.creado_at).toLocaleString()}${resuelta && s.resuelto_manual_at ? ' · resuelto ' + new Date(s.resuelto_manual_at).toLocaleString() : ''}</div>
       </div>
       ${s.estado==='conflicto' ? '<button class="btn peligro chico" data-id="'+s.id+'">Marcar resuelto</button>' : ''}
     `;
@@ -523,7 +575,7 @@ async function cargarSolicitudes(){
     if(btnResolver){
       btnResolver.addEventListener('click', async ()=>{
         if(!confirm('¿Ya reembolsaste o resolviste este conflicto manualmente con el comprador?')) return;
-        await sb.from('solicitudes_compra').update({ estado:'rechazada' }).eq('id', s.id);
+        await sb.from('solicitudes_compra').update({ estado:'rechazada', resuelto_manual: true, resuelto_manual_at: new Date().toISOString() }).eq('id', s.id);
         toast('Marcado como resuelto');
         cargarSolicitudes();
       });
@@ -576,7 +628,6 @@ async function abrirModalComprador(n){
   document.getElementById('mc-numero').textContent = '#'+n.numero;
   document.getElementById('mc-nombre').value = n.nombre_completo || '';
   document.getElementById('mc-correo').value = n.correo || '';
-  document.getElementById('mc-dni').value = n.dni || '';
   document.getElementById('mc-telefono').value = n.telefono || '';
   document.getElementById('modal-comprador').classList.add('show');
 
@@ -606,7 +657,6 @@ document.getElementById('mc-guardar').addEventListener('click', async ()=>{
   const { error } = await sb.from('numeros').update({
     nombre_completo: document.getElementById('mc-nombre').value.trim(),
     correo: document.getElementById('mc-correo').value.trim(),
-    dni: document.getElementById('mc-dni').value.trim(),
     telefono: document.getElementById('mc-telefono').value.trim(),
   }).eq('id', numeroModalActual.id);
   toast(error ? 'No se pudo guardar' : 'Datos actualizados');
@@ -615,21 +665,32 @@ document.getElementById('mc-guardar').addEventListener('click', async ()=>{
 });
 
 // ---------- GENERAR LINK ----------
-document.getElementById('btn-generar-link').addEventListener('click', ()=> document.getElementById('modal-link').classList.add('show'));
+document.getElementById('btn-generar-link').addEventListener('click', ()=>{
+  if(!sorteoActual || sorteoActual.estado !== 'activo'){
+    toast('No hay un sorteo activo en este momento.');
+    return;
+  }
+  document.getElementById('modal-link').classList.add('show');
+});
 document.getElementById('gl-cancelar').addEventListener('click', ()=> document.getElementById('modal-link').classList.remove('show'));
 document.getElementById('gl-crear').addEventListener('click', async ()=>{
+  if(!sorteoActual || sorteoActual.estado !== 'activo'){
+    document.getElementById('modal-link').classList.remove('show');
+    toast('No hay un sorteo activo en este momento.');
+    return;
+  }
   const cantidad = parseInt(document.getElementById('gl-cantidad').value, 10);
   if(!cantidad || cantidad < 1){ toast('Cantidad inválida'); return; }
   const { error } = await sb.rpc('generar_link', { p_cantidad: cantidad });
   document.getElementById('modal-link').classList.remove('show');
-  if(error){ toast('No se pudo generar el link'); return; }
+  if(error){ toast('No se pudo generar el link: ' + error.message); return; }
   toast('Enlace generado');
   cargarLinks();
 });
 
 async function cargarLinks(){
   const cont = document.getElementById('links-lista');
-  const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).order('creado_at',{ascending:false});
+  const { data } = await sb.from('links').select('*').eq('sorteo_id', sorteoActual.id).eq('oculto', false).order('creado_at',{ascending:false});
   cont.innerHTML = '';
   (data||[]).forEach(l=>{
     const url = `${SUPABASE_URL}/functions/v1/enlace-preview?token=${l.token}`;
@@ -644,15 +705,38 @@ async function cargarLinks(){
           Usados ${l.cantidad_usada}/${l.cantidad_permitida} · expira ${new Date(l.expira_at).toLocaleString()}
         </div>
       </div>
-      <button class="btn secundario chico" data-url="${url}">Copiar</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn secundario chico" data-url="${url}">Copiar</button>
+        <button class="btn peligro chico" data-id="${l.id}">Quitar</button>
+      </div>
     `;
-    item.querySelector('button').addEventListener('click', (e)=>{
+    item.querySelector('button[data-url]').addEventListener('click', (e)=>{
       navigator.clipboard.writeText(e.target.dataset.url);
       toast('Enlace copiado');
     });
+    item.querySelector('button[data-id]').addEventListener('click', async (e)=>{
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const { error } = await sb.from('links').update({ oculto: true }).eq('id', btn.dataset.id);
+      if(error){ toast('No se pudo quitar de la lista: ' + error.message); btn.disabled = false; return; }
+      item.remove();
+      if(!cont.children.length) cont.innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
+    });
     cont.appendChild(item);
   });
+  if(!(data||[]).length) cont.innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
 }
+
+document.getElementById('btn-limpiar-links').addEventListener('click', async ()=>{
+  if(!sorteoActual){ toast('No hay un sorteo activo en este momento.'); return; }
+  if(!confirm('Esto oculta TODOS los links de esta lista (no los invalida: si alguien todavía tiene el suyo, le sigue funcionando igual). ¿Confirmás?')) return;
+  const btn = document.getElementById('btn-limpiar-links');
+  btn.disabled = true;
+  const { error } = await sb.from('links').update({ oculto: true }).eq('sorteo_id', sorteoActual.id).eq('oculto', false);
+  btn.disabled = false;
+  if(error){ toast('No se pudo limpiar la lista: ' + error.message); return; }
+  document.getElementById('links-lista').innerHTML = '<p class="ayuda">No hay enlaces en la lista.</p>';
+});
 
 // ---------- SORTEAR ----------
 document.getElementById('btn-sortear').addEventListener('click', async ()=>{
@@ -661,6 +745,36 @@ document.getElementById('btn-sortear').addEventListener('click', async ()=>{
   if(error){ toast('No se pudo sortear: '+error.message); return; }
   toast(`Ganador: #${data.numero} · ${data.nombre||''}`);
   await cargarTodo();
+
+  // Mail especial al ganador. Es "best effort": si falla, no le mostramos
+  // error al admin ni afecta el sorteo (el ganador ya quedó registrado
+  // igual); el error queda en la consola por si hay que revisarlo.
+  try{
+    const { data: numeroGanador } = await sb.from('numeros').select('correo').eq('sorteo_id', sorteoActual.id).eq('numero', data.numero).maybeSingle();
+    if(numeroGanador?.correo){
+      const { data: sesion } = await sb.auth.getSession();
+      const accessToken = sesion?.session?.access_token;
+      if(accessToken){
+        await fetch(ENVIAR_ANUNCIO_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + accessToken
+          },
+          body: JSON.stringify({
+            tipo: 'ganador',
+            correo: numeroGanador.correo,
+            nombre: data.nombre || '',
+            numero_ganador: data.numero,
+            premio_nombre: sorteoActual.premio_nombre || ''
+          })
+        });
+      }
+    }
+  } catch(err){
+    console.error('No se pudo enviar el mail al ganador (no afecta el sorteo):', err);
+  }
 });
 
 // ---------- NUEVO SORTEO ----------
@@ -815,8 +929,7 @@ document.getElementById('ticket-resultado').addEventListener('click', async (e)=
 });
 
 // ---------- ENVÍOS: contactos y tandas ----------
-const GAS_TICKET_URL_ENVIOS = "https://script.google.com/macros/s/AKfycbxHcy0SHygrWFjzD1FAtswvClLhJYn5XQ8j36QKQ_kmWkT0y1p7z-nYjSoHQWETjTTl/exec";
-const GAS_TOKEN_ENVIOS = "Eros_Sorteos_Ticket_2026_Prod";
+const ENVIAR_ANUNCIO_URL = SUPABASE_URL + "/functions/v1/enviar-anuncio";
 
 function logEnvio(msg, tipo){
   const box = document.getElementById('envio-log');
@@ -862,14 +975,116 @@ async function sincronizarContactos(){
 }
 
 async function cargarMetricasEnvios(){
-  const { data, error } = await sb.from('contactos_envios').select('enviado');
+  const { data, error } = await sb.from('contactos_envios').select('*').order('creado_at', {ascending:false});
   if(error){ logEnvio('No se pudieron cargar las métricas: ' + error.message, 'err'); return; }
   const total = (data || []).length;
   const enviados = (data || []).filter(c => c.enviado).length;
   document.getElementById('env-total').textContent = total;
   document.getElementById('env-enviados').textContent = enviados;
   document.getElementById('env-pendientes').textContent = total - enviados;
+  dibujarContactos(data || []);
 }
+
+function dibujarContactos(contactos){
+  const cont = document.getElementById('contactos-lista');
+  cont.innerHTML = '';
+  if(contactos.length === 0){
+    cont.innerHTML = '<p class="ayuda">Todavía no hay contactos. Tocá "Actualizar lista de contactos".</p>';
+    return;
+  }
+  contactos.forEach(c=>{
+    const fila = document.createElement('div');
+    fila.className = 'item-fila';
+    fila.innerHTML = `
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
+        <input type="checkbox" data-correo="${c.correo}" ${c.enviado ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0">
+        <span>
+          <b>${c.nombre || c.correo}</b>
+          ${c.nombre ? `<br><span style="color:var(--ink-soft);font-size:.78rem">${c.correo}</span>` : ''}
+        </span>
+      </label>
+    `;
+    fila.querySelector('input[type="checkbox"]').addEventListener('change', async (e)=>{
+      const marcado = e.target.checked;
+      const { error } = await sb.from('contactos_envios')
+        .update({ enviado: marcado, enviado_at: marcado ? new Date().toISOString() : null })
+        .eq('correo', e.target.dataset.correo);
+      if(error){ toast('No se pudo actualizar'); e.target.checked = !marcado; return; }
+      cargarMetricasEnvios();
+    });
+    cont.appendChild(fila);
+  });
+
+  dibujarContactosEliminar(contactos);
+}
+
+// ---------- SUB-SOLAPA "ELIMINAR" ----------
+let correosParaEliminar = new Set();
+
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const contenedor = btn.closest('.card');
+    contenedor.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('activo'));
+    contenedor.querySelectorAll('.subpanel').forEach(p=>p.classList.remove('activo'));
+    btn.classList.add('activo');
+    contenedor.querySelector(`.subpanel[data-subpanel="${btn.dataset.subtab}"]`).classList.add('activo');
+  });
+});
+
+function dibujarContactosEliminar(contactos){
+  const cont = document.getElementById('contactos-eliminar-lista');
+  cont.innerHTML = '';
+
+  // Descarta de la selección los correos que ya no existen en la lista actual
+  const correosActuales = new Set(contactos.map(c => c.correo));
+  correosParaEliminar.forEach(correo => { if(!correosActuales.has(correo)) correosParaEliminar.delete(correo); });
+
+  if(contactos.length === 0){
+    cont.innerHTML = '<p class="ayuda">No hay contactos para eliminar.</p>';
+  } else {
+    contactos.forEach(c=>{
+      const marcado = correosParaEliminar.has(c.correo);
+      const fila = document.createElement('div');
+      fila.className = 'contacto-fila' + (marcado ? ' marcado-eliminar' : '');
+      fila.innerHTML = `
+        <div class="info">
+          <b>${c.nombre || c.correo}</b>
+          ${c.nombre ? `<span>${c.correo}</span>` : ''}
+        </div>
+        <input type="checkbox" data-correo="${c.correo}" ${marcado ? 'checked' : ''}>
+      `;
+      fila.querySelector('input[type="checkbox"]').addEventListener('change', (e)=>{
+        const correo = e.target.dataset.correo;
+        if(e.target.checked){ correosParaEliminar.add(correo); fila.classList.add('marcado-eliminar'); }
+        else { correosParaEliminar.delete(correo); fila.classList.remove('marcado-eliminar'); }
+        actualizarBarraEliminar();
+      });
+      cont.appendChild(fila);
+    });
+  }
+
+  actualizarBarraEliminar();
+}
+
+function actualizarBarraEliminar(){
+  const n = correosParaEliminar.size;
+  document.getElementById('eliminar-contador').textContent = n === 1 ? '1 seleccionado' : `${n} seleccionados`;
+  document.getElementById('btn-eliminar-seleccionados').disabled = n === 0;
+}
+
+document.getElementById('btn-eliminar-seleccionados').addEventListener('click', async ()=>{
+  const correos = Array.from(correosParaEliminar);
+  if(correos.length === 0) return;
+  const detalle = correos.length === 1 ? correos[0] : `${correos.length} contactos`;
+  if(!confirm(`¿Eliminar a ${detalle} de la lista de contactos? Ya no van a recibir más envíos masivos.`)) return;
+
+  const { error } = await sb.from('contactos_envios').delete().in('correo', correos);
+  if(error){ toast('No se pudo eliminar'); return; }
+
+  toast(correos.length === 1 ? 'Contacto eliminado' : `${correos.length} contactos eliminados`);
+  correosParaEliminar.clear();
+  cargarMetricasEnvios();
+});
 
 document.getElementById('btn-refrescar-contactos').addEventListener('click', async ()=>{
   logEnvio('Sincronizando contactos...');
@@ -906,24 +1121,37 @@ document.getElementById('btn-enviar-tanda').addEventListener('click', async ()=>
   btn.disabled = true;
   logEnvio(`Iniciando envío de ${pendientes.length} correo(s)...`);
 
+  const { data: sesion } = await sb.auth.getSession();
+  const accessToken = sesion?.session?.access_token;
+  if(!accessToken){
+    logEnvio('No hay sesión activa, volvé a iniciar sesión.', 'err');
+    btn.disabled = false;
+    return;
+  }
+
   let enviados = 0, errores = 0;
 
   for(let i=0;i<pendientes.length;i++){
     const c = pendientes[i];
     btn.textContent = `Enviando (${i+1}/${pendientes.length})...`;
     try{
-      await fetch(GAS_TICKET_URL_ENVIOS, {
+      const res = await fetch(ENVIAR_ANUNCIO_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + accessToken
+        },
         body: JSON.stringify({
-          token: GAS_TOKEN_ENVIOS,
-          tipo: 'anuncio',
           correo: c.correo,
           nombre: c.nombre || '',
           mensaje, link, asunto
         })
       });
+      const data = await res.json().catch(()=>null);
+      if(!data || data.ok !== true){
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
       await sb.from('contactos_envios').update({ enviado: true, enviado_at: new Date().toISOString() }).eq('correo', c.correo);
       enviados++;
       logEnvio(`Enviado a ${c.correo}`, 'ok');

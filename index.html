@@ -428,11 +428,40 @@ document.getElementById('avatar-wrap').addEventListener('click', ()=>{
 const DURACION_SHOW_MS = 60000;      // 1 minuto: luz + contador juntos
 const INTERVALO_LUZ_MS = 80;         // velocidad CONSTANTE de la luz (no se acelera ni frena)
 
+// ---------- Música del sorteo ----------
+async function elegirYReproducirMusica(){
+  try{
+    const { data, error } = await sb.storage.from('audio').list();
+    if(error || !data || !data.length) return;
+    const archivos = data.filter(f => f.name && !f.name.startsWith('.'));
+    if(!archivos.length) return;
+    const elegido = archivos[Math.floor(Math.random() * archivos.length)];
+    const { data: urlData } = sb.storage.from('audio').getPublicUrl(elegido.name);
+    const audio = document.getElementById('audio-sorteo');
+    audio.src = urlData.publicUrl;
+    audio.currentTime = 0;
+    audio.volume = 0.6;
+    await audio.play();
+  }catch(e){
+    // Los navegadores bloquean el autoplay con sonido si la persona todavía
+    // no interactuó con la página. No es un error grave: el show sigue
+    // andando igual, simplemente sin música en ese caso puntual.
+    console.warn('No se pudo reproducir la música automáticamente:', e);
+  }
+}
+function detenerMusica(){
+  const audio = document.getElementById('audio-sorteo');
+  audio.pause();
+  audio.currentTime = 0;
+}
+
 async function manejarSecuenciaSorteo(inicioMs){
   animando = true;
   const fin = inicioMs + DURACION_SHOW_MS;
   if(Date.now() < fin){
+    elegirYReproducirMusica();
     await correrShowEnVivo(fin);
+    detenerMusica();
   }
   await mostrarResultadoFinal();
   animando = false;
@@ -506,14 +535,16 @@ function mostrarGanadorFinal(numero, nombre, festejar){
   if(festejar) lanzarFestejo();
 }
 
+let confettiIntervalId = null;
 function lanzarFestejo(){
   document.body.classList.add('flash');
   setTimeout(()=> document.body.classList.remove('flash'), 700);
   document.querySelector('.marquee').classList.add('festejo');
   setTimeout(()=> document.querySelector('.marquee').classList.remove('festejo'), 2200);
+  if(confettiIntervalId) clearInterval(confettiIntervalId);
   lanzarConfeti();
   setTimeout(lanzarConfeti, 500);
-  setTimeout(lanzarConfeti, 1100);
+  confettiIntervalId = setInterval(lanzarConfeti, 600);
 }
 
 function lanzarConfeti(){
@@ -573,6 +604,6 @@ function suscribirRealtime(){
   }
 })();
 </script>
+<audio id="audio-sorteo" loop style="display:none"></audio>
 </body>
 </html>
-

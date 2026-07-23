@@ -470,6 +470,23 @@ function detenerMusica(){
   audio.currentTime = 0;
 }
 
+async function reproducirSonidoGanador(){
+  try{
+    const { data, error } = await sb.storage.from('audio').list('sonido premio');
+    if(error || !data || !data.length) return;
+    const archivos = data.filter(f => f.name && !f.name.startsWith('.'));
+    if(!archivos.length) return;
+    const elegido = archivos[Math.floor(Math.random() * archivos.length)];
+    const { data: urlData } = sb.storage.from('audio').getPublicUrl('sonido premio/' + elegido.name);
+    const audio = document.getElementById('audio-ganador');
+    audio.src = urlData.publicUrl;
+    audio.volume = 0.8;
+    await audio.play();
+  }catch(e){
+    console.warn('No se pudo reproducir el sonido de ganador:', e);
+  }
+}
+
 async function manejarSecuenciaSorteo(inicioMs){
   animando = true;
   const fin = inicioMs + DURACION_SHOW_MS;
@@ -477,6 +494,7 @@ async function manejarSecuenciaSorteo(inicioMs){
     elegirYReproducirMusica();
     await correrShowEnVivo(fin);
     detenerMusica();
+    reproducirSonidoGanador();
   }
   await mostrarResultadoFinal();
   animando = false;
@@ -563,7 +581,7 @@ function lanzarFestejo(){
 
 function lanzarConfeti(){
   const emojis = ['🎉','🎊','🥳','✨','🍾','🎈','🪅'];
-  const total = 40;
+  const total = 90;
   for(let i=0;i<total;i++){
     setTimeout(()=>{
       const piece = document.createElement('div');
@@ -619,5 +637,6 @@ function suscribirRealtime(){
 })();
 </script>
 <audio id="audio-sorteo" loop style="display:none"></audio>
+<audio id="audio-ganador" style="display:none"></audio>
 </body>
 </html>

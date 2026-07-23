@@ -292,6 +292,9 @@
 
     <!-- TABLERO -->
     <section class="panel" data-panel="tablero">
+      <div class="fila-acciones">
+        <button class="btn secundario chico" id="btn-config-tablero">⚙️ Configuración del tablero</button>
+      </div>
       <div class="card">
         <p class="ayuda" style="margin-top:0">Tocá un número vendido para ver o editar los datos del comprador.</p>
         <div class="tablero" id="tablero"></div>
@@ -406,6 +409,27 @@
   </div>
 </div>
 
+
+<!-- MODAL: configuración del tablero -->
+<div class="modal-bg" id="modal-config-tablero">
+  <div class="modal">
+    <h3>Configuración del tablero</h3>
+    <div class="campo">
+      <label>Cantidad de números</label>
+      <input id="ct-cantidad" type="number" min="1" step="1">
+    </div>
+    <div class="campo">
+      <label>Tiempo del sorteo (segundos)</label>
+      <input id="ct-tiempo" type="number" min="1" step="1">
+    </div>
+    <p class="ayuda">La cantidad de números solo aplica al próximo sorteo que arranques con "Nuevo sorteo" (el sorteo activo actual ya tiene sus números creados y no se modifica). El tiempo del sorteo es cuánto dura la cuenta regresiva + la luz corriendo en la pantalla pública al sortear.</p>
+    <div class="acciones">
+      <button class="btn secundario chico" id="ct-cancelar">Cancelar</button>
+      <button class="btn chico" id="ct-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -415,6 +439,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let sorteoActual = null;
 let numerosActuales = [];
+let configActual = null;
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -459,6 +484,7 @@ function mostrarApp(){
 // ---------- CARGA GENERAL ----------
 async function cargarTodo(){
   const { data: config } = await sb.from('config').select('*').eq('id',1).single();
+  configActual = config || null;
   if(config){
     document.getElementById('s-visitas').textContent = config.visitas;
     document.getElementById('precio-numero').value = config.precio_numero || 0;
@@ -497,13 +523,25 @@ async function cargarTodo(){
 }
 
 async function cargarNumeros(){
+  //EROS funcion vieja
+  //const { data } = await sb.from('numeros').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
+  //numerosActuales = data || [];
+  //pintarTablero();
+  //const vendidos = numerosActuales.filter(n=>n.vendido).length;
+  //document.getElementById('s-vendidos').textContent = vendidos;
+  //document.getElementById('s-disponibles').textContent = 100 - vendidos;
+  //document.getElementById('s-porcentaje').textContent = vendidos + '%';
+  //EROS
+  //EROS funcion nueva
   const { data } = await sb.from('numeros').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
   numerosActuales = data || [];
   pintarTablero();
+  const total = numerosActuales.length;
   const vendidos = numerosActuales.filter(n=>n.vendido).length;
   document.getElementById('s-vendidos').textContent = vendidos;
-  document.getElementById('s-disponibles').textContent = 100 - vendidos;
-  document.getElementById('s-porcentaje').textContent = vendidos + '%';
+  document.getElementById('s-disponibles').textContent = total - vendidos;
+  document.getElementById('s-porcentaje').textContent = (total ? Math.round(vendidos/total*100) : 0) + '%';
+  //EROS
 }
 
 function pintarTablero(){
@@ -686,6 +724,32 @@ document.getElementById('gl-crear').addEventListener('click', async ()=>{
   if(error){ toast('No se pudo generar el link: ' + error.message); return; }
   toast('Enlace generado');
   cargarLinks();
+});
+
+// ---------- CONFIGURACIÓN DEL TABLERO ----------
+document.getElementById('btn-config-tablero').addEventListener('click', ()=>{
+  document.getElementById('ct-cantidad').value = configActual?.cantidad_numeros || 100;
+  document.getElementById('ct-tiempo').value = configActual?.tiempo_sorteo_segundos || 60;
+  document.getElementById('modal-config-tablero').classList.add('show');
+});
+document.getElementById('ct-cancelar').addEventListener('click', ()=>{
+  document.getElementById('modal-config-tablero').classList.remove('show');
+});
+document.getElementById('ct-guardar').addEventListener('click', async ()=>{
+  const cantidad = parseInt(document.getElementById('ct-cantidad').value, 10);
+  const tiempo = parseInt(document.getElementById('ct-tiempo').value, 10);
+  if(!cantidad || cantidad < 1){ toast('Cantidad de números inválida'); return; }
+  if(!tiempo || tiempo < 1){ toast('Tiempo del sorteo inválido'); return; }
+
+  const { error } = await sb.from('config')
+    .update({ cantidad_numeros: cantidad, tiempo_sorteo_segundos: tiempo })
+    .eq('id', 1);
+
+  if(error){ toast('No se pudo guardar: ' + error.message); return; }
+
+  configActual = { ...(configActual||{}), cantidad_numeros: cantidad, tiempo_sorteo_segundos: tiempo };
+  document.getElementById('modal-config-tablero').classList.remove('show');
+  toast('Configuración guardada');
 });
 
 async function cargarLinks(){

@@ -927,35 +927,41 @@ document.getElementById('btn-sortear').addEventListener('click', async ()=>{
   toast(`Ganador: #${data.numero} · ${data.nombre||''}`);
   await cargarTodo();
 
-  // Mail especial al ganador. Es "best effort": si falla, no le mostramos
-  // error al admin ni afecta el sorteo (el ganador ya quedó registrado
-  // igual); el error queda en la consola por si hay que revisarlo.
-  try{
-    const { data: numeroGanador } = await sb.from('numeros').select('correo').eq('sorteo_id', sorteoActual.id).eq('numero', data.numero).maybeSingle();
-    if(numeroGanador?.correo){
-      const { data: sesion } = await sb.auth.getSession();
-      const accessToken = sesion?.session?.access_token;
-      if(accessToken){
-        await fetch(ENVIAR_ANUNCIO_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_KEY,
-            'Authorization': 'Bearer ' + accessToken
-          },
-          body: JSON.stringify({
-            tipo: 'ganador',
-            correo: numeroGanador.correo,
-            nombre: data.nombre || '',
-            numero_ganador: data.numero,
-            premio_nombre: sorteoActual.premio_nombre || ''
-          })
-        });
+  // Mail especial al ganador. Se retrasa hasta que termine el contador
+  // del show público (mismo tiempo que usa index.html), para que no
+  // llegue antes de que el ganador se vea en pantalla. Es "best effort":
+  // si falla, no le mostramos error al admin ni afecta el sorteo (el
+  // ganador ya quedó registrado igual); el error queda en la consola
+  // por si hay que revisarlo.
+  const esperaMs = (configActual?.tiempo_sorteo_segundos ?? 60) * 1000;
+  setTimeout(async ()=>{
+    try{
+      const { data: numeroGanador } = await sb.from('numeros').select('correo').eq('sorteo_id', sorteoActual.id).eq('numero', data.numero).maybeSingle();
+      if(numeroGanador?.correo){
+        const { data: sesion } = await sb.auth.getSession();
+        const accessToken = sesion?.session?.access_token;
+        if(accessToken){
+          await fetch(ENVIAR_ANUNCIO_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + accessToken
+            },
+            body: JSON.stringify({
+              tipo: 'ganador',
+              correo: numeroGanador.correo,
+              nombre: data.nombre || '',
+              numero_ganador: data.numero,
+              premio_nombre: sorteoActual.premio_nombre || ''
+            })
+          });
+        }
       }
+    } catch(err){
+      console.error('No se pudo enviar el mail al ganador (no afecta el sorteo):', err);
     }
-  } catch(err){
-    console.error('No se pudo enviar el mail al ganador (no afecta el sorteo):', err);
-  }
+  }, esperaMs);
 });
 
 // ---------- NUEVO SORTEO ----------

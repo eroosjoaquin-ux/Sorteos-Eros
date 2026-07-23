@@ -149,6 +149,7 @@ const token = params.get('token');
 let linkInfo = null;
 let numerosOcupados = new Set();
 let seleccionados = new Set();
+let CANTIDAD_NUMEROS = 100;
 
 document.getElementById('link-ver-sorteo').href = location.pathname.replace('registro.html','index.html');
 
@@ -177,6 +178,7 @@ async function init(){
   document.getElementById('subtitulo').textContent = `Registro para "${data.premio_nombre}"`;
 
   const { data: numeros } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', data.sorteo_id).order('numero');
+  CANTIDAD_NUMEROS = (numeros||[]).length || 100;
   (numeros||[]).forEach(n=>{ if(n.vendido) numerosOcupados.add(n.numero); });
 
   construirTablero();
@@ -187,7 +189,7 @@ async function init(){
 function construirTablero(){
   const tablero = document.getElementById('tablero');
   tablero.innerHTML = '';
-  for(let n=1;n<=100;n++){
+  for(let n=1;n<=CANTIDAD_NUMEROS;n++){
     const div = document.createElement('div');
     const ocupado = numerosOcupados.has(n);
     div.className = 'casillero ' + (ocupado ? 'vendido' : 'disponible');

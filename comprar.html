@@ -162,6 +162,7 @@ let precio = 0;
 let numerosVendidos = new Set();
 let numerosPendientes = new Set();
 let seleccionados = new Set();
+let CANTIDAD_NUMEROS = 100;
 
 function mostrarSolo(id){
   ['vista-compra','vista-esperando','vista-aprobado','vista-rechazado','vista-sin-sorteo'].forEach(v=>{
@@ -239,6 +240,7 @@ async function cargarFormulario(){
   document.getElementById('precio-txt').textContent = '$' + precio.toLocaleString('es-AR');
 
   const { data: numeros } = await sb.from('numeros_publicos').select('numero,vendido').eq('sorteo_id', sorteo.id);
+  CANTIDAD_NUMEROS = (numeros||[]).length || 100;
   (numeros||[]).forEach(n=>{ if(n.vendido) numerosVendidos.add(n.numero); });
 
   const { data: pendientes } = await sb.from('numeros_pendientes').select('numero').eq('sorteo_id', sorteo.id);
@@ -255,7 +257,7 @@ async function cargarFormulario(){
 function construirTablero(){
   const tablero = document.getElementById('tablero');
   tablero.innerHTML = '';
-  for(let n=1;n<=100;n++){
+  for(let n=1;n<=CANTIDAD_NUMEROS;n++){
     const div = document.createElement('div');
     const vendido = numerosVendidos.has(n);
     const pendiente = numerosPendientes.has(n);

@@ -127,6 +127,19 @@
   .modal .acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
   .comprobante-link{color:var(--verde);font-weight:700;font-size:.82rem;}
 
+  /* ---------- STEPPERS: configuración del tablero ---------- */
+  .stepper-cantidad{display:flex;align-items:center;justify-content:center;gap:16px;}
+  .stepper-valor{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;min-width:56px;text-align:center;}
+  .stepper-tiempo{display:flex;align-items:center;justify-content:center;gap:10px;}
+  .stepper-columna{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .stepper-flecha{
+    border:1px solid var(--line);background:#fff;border-radius:8px;width:34px;height:28px;
+    font-size:.8rem;color:var(--verde);line-height:1;
+  }
+  .stepper-flecha:hover{background:var(--verde-suave);}
+  .stepper-num{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;min-width:38px;text-align:center;}
+  .stepper-separador{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;padding-bottom:0;}
+
   #reader{width:100%;max-width:360px;margin:10px auto 0;border-radius:12px;overflow:hidden;}
   #reader video{border-radius:12px;}
   .ticket-manual{display:flex;gap:8px;margin-top:4px;}
@@ -416,13 +429,29 @@
     <h3>Configuración del tablero</h3>
     <div class="campo">
       <label>Cantidad de números</label>
-      <input id="ct-cantidad" type="number" min="1" step="1">
+      <div class="stepper-cantidad">
+        <button type="button" class="btn secundario chico" id="ct-cantidad-menos">− 10</button>
+        <span class="stepper-valor" id="ct-cantidad-valor">100</span>
+        <button type="button" class="btn secundario chico" id="ct-cantidad-mas">+ 10</button>
+      </div>
     </div>
     <div class="campo">
-      <label>Tiempo del sorteo (segundos)</label>
-      <input id="ct-tiempo" type="number" min="1" step="1">
+      <label>Tiempo del sorteo (minutos : segundos)</label>
+      <div class="stepper-tiempo">
+        <div class="stepper-columna">
+          <button type="button" class="stepper-flecha" id="ct-min-mas">▲</button>
+          <span class="stepper-num" id="ct-min-valor">01</span>
+          <button type="button" class="stepper-flecha" id="ct-min-menos">▼</button>
+        </div>
+        <span class="stepper-separador">:</span>
+        <div class="stepper-columna">
+          <button type="button" class="stepper-flecha" id="ct-seg-mas">▲</button>
+          <span class="stepper-num" id="ct-seg-valor">00</span>
+          <button type="button" class="stepper-flecha" id="ct-seg-menos">▼</button>
+        </div>
+      </div>
     </div>
-    <p class="ayuda">La cantidad de números solo aplica al próximo sorteo que arranques con "Nuevo sorteo" (el sorteo activo actual ya tiene sus números creados y no se modifica). El tiempo del sorteo es cuánto dura la cuenta regresiva + la luz corriendo en la pantalla pública al sortear.</p>
+    <p class="ayuda">La cantidad se aplica al instante al sorteo activo (agrega o saca casilleros ahí mismo, en el admin, en la web pública, en comprar y en registro). Si intentás bajarla por debajo de un número que ya fue vendido, no te va a dejar. El tiempo del sorteo es cuánto dura la cuenta regresiva + la luz corriendo en la pantalla pública al sortear.</p>
     <div class="acciones">
       <button class="btn secundario chico" id="ct-cancelar">Cancelar</button>
       <button class="btn chico" id="ct-guardar">Guardar</button>
@@ -518,6 +547,7 @@ async function cargarTodo(){
     document.getElementById('btn-generar-link').disabled = true;
     document.getElementById('btn-sortear').disabled = true;
     document.getElementById('btn-nuevo-sorteo').disabled = true;
+    document.getElementById('btn-config-tablero').disabled = false;
   }
   await cargarHistorial();
 }
@@ -561,6 +591,10 @@ function actualizarBotones(){
   document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
   document.getElementById('btn-generar-link').disabled = sorteoActual.estado !== 'activo' || !sorteoActual.premio_nombre || !sorteoActual.premio_nombre.trim();
+  // Una vez que el premio quedó guardado, el sorteo ya "arrancó" con la
+  // cantidad de números que tenía en ese momento: no se puede tocar más
+  // hasta el próximo "Nuevo sorteo".
+  document.getElementById('btn-config-tablero').disabled = !!(sorteoActual.premio_nombre && sorteoActual.premio_nombre.trim());
 }
 
 // ---------- AVATAR ----------
@@ -628,6 +662,11 @@ document.getElementById('btn-guardar-premio').addEventListener('click', async ()
   const desc = document.getElementById('premio-desc').value.trim();
   const { error } = await sb.from('sorteos').update({ premio_nombre: nombre, premio_descripcion: desc }).eq('id', sorteoActual.id);
   toast(error ? 'No se pudo guardar' : 'Premio actualizado');
+  if(!error){
+    sorteoActual.premio_nombre = nombre;
+    sorteoActual.premio_descripcion = desc;
+    actualizarBotones();
+  }
 });
 
 document.getElementById('input-foto').addEventListener('change', async (e)=>{
@@ -727,29 +766,87 @@ document.getElementById('gl-crear').addEventListener('click', async ()=>{
 });
 
 // ---------- CONFIGURACIÓN DEL TABLERO ----------
+let ctCantidad = 100;
+let ctMinutos = 1;
+let ctSegundos = 0;
+
+function pintarStepperCantidad(){
+  document.getElementById('ct-cantidad-valor').textContent = ctCantidad;
+  document.getElementById('ct-cantidad-menos').disabled = ctCantidad <= 10;
+}
+function pintarStepperTiempo(){
+  document.getElementById('ct-min-valor').textContent = String(ctMinutos).padStart(2,'0');
+  document.getElementById('ct-seg-valor').textContent = String(ctSegundos).padStart(2,'0');
+  document.getElementById('ct-min-menos').disabled = ctMinutos <= 0;
+  document.getElementById('ct-seg-menos').disabled = ctSegundos <= 0 && ctMinutos <= 0;
+}
+
 document.getElementById('btn-config-tablero').addEventListener('click', ()=>{
-  document.getElementById('ct-cantidad').value = configActual?.cantidad_numeros || 100;
-  document.getElementById('ct-tiempo').value = configActual?.tiempo_sorteo_segundos || 60;
+  ctCantidad = configActual?.cantidad_numeros || 100;
+  const totalSeg = configActual?.tiempo_sorteo_segundos ?? 60;
+  ctMinutos = Math.floor(totalSeg / 60);
+  ctSegundos = totalSeg % 60;
+  pintarStepperCantidad();
+  pintarStepperTiempo();
   document.getElementById('modal-config-tablero').classList.add('show');
 });
 document.getElementById('ct-cancelar').addEventListener('click', ()=>{
   document.getElementById('modal-config-tablero').classList.remove('show');
 });
+
+document.getElementById('ct-cantidad-mas').addEventListener('click', ()=>{
+  ctCantidad += 10;
+  pintarStepperCantidad();
+});
+document.getElementById('ct-cantidad-menos').addEventListener('click', ()=>{
+  if(ctCantidad <= 10) return;
+  ctCantidad -= 10;
+  pintarStepperCantidad();
+});
+
+document.getElementById('ct-min-mas').addEventListener('click', ()=>{
+  ctMinutos++;
+  pintarStepperTiempo();
+});
+document.getElementById('ct-min-menos').addEventListener('click', ()=>{
+  if(ctMinutos <= 0) return;
+  ctMinutos--;
+  pintarStepperTiempo();
+});
+document.getElementById('ct-seg-mas').addEventListener('click', ()=>{
+  ctSegundos++;
+  if(ctSegundos >= 60){ ctSegundos = 0; ctMinutos++; }
+  pintarStepperTiempo();
+});
+document.getElementById('ct-seg-menos').addEventListener('click', ()=>{
+  if(ctSegundos <= 0){
+    if(ctMinutos <= 0) return;
+    ctMinutos--; ctSegundos = 59;
+  } else {
+    ctSegundos--;
+  }
+  pintarStepperTiempo();
+});
+
 document.getElementById('ct-guardar').addEventListener('click', async ()=>{
-  const cantidad = parseInt(document.getElementById('ct-cantidad').value, 10);
-  const tiempo = parseInt(document.getElementById('ct-tiempo').value, 10);
-  if(!cantidad || cantidad < 1){ toast('Cantidad de números inválida'); return; }
-  if(!tiempo || tiempo < 1){ toast('Tiempo del sorteo inválido'); return; }
+  const cantidad = ctCantidad;
+  const tiempo = ctMinutos * 60 + ctSegundos;
+  if(!cantidad || cantidad < 10){ toast('Cantidad de números inválida'); return; }
+  if(!tiempo || tiempo < 1){ toast('El tiempo del sorteo tiene que ser mayor a 0'); return; }
 
-  const { error } = await sb.from('config')
-    .update({ cantidad_numeros: cantidad, tiempo_sorteo_segundos: tiempo })
+  const { error: errCantidad } = await sb.rpc('actualizar_cantidad_numeros', { p_cantidad: cantidad });
+  if(errCantidad){ toast('No se pudo actualizar la cantidad: ' + errCantidad.message); return; }
+
+  const { error: errTiempo } = await sb.from('config')
+    .update({ tiempo_sorteo_segundos: tiempo })
     .eq('id', 1);
-
-  if(error){ toast('No se pudo guardar: ' + error.message); return; }
+  if(errTiempo){ toast('No se pudo guardar el tiempo: ' + errTiempo.message); return; }
 
   configActual = { ...(configActual||{}), cantidad_numeros: cantidad, tiempo_sorteo_segundos: tiempo };
   document.getElementById('modal-config-tablero').classList.remove('show');
   toast('Configuración guardada');
+
+  if(sorteoActual) await cargarNumeros(); // refresca el tablero del admin al toque
 });
 
 async function cargarLinks(){

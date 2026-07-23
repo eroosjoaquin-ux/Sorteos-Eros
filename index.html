@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Sorteos Eros</title>
-<meta name="description" content="Sorteo en vivo · 100 números · Seguí el tablero en tiempo real">
+<meta name="description" content="Sorteo en vivo · Seguí el tablero en tiempo real">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -218,7 +218,7 @@
     <div class="board-wrap" id="board-wrap">
       <div class="tablero" id="tablero"></div>
     </div>
-    <p class="mensaje-final">El sorteo se realizará una vez vendidos los 100 números.</p>
+    <p class="mensaje-final" id="mensaje-final">El sorteo se realizará una vez vendidos los 100 números.</p>
   </div>
 
 </div>
@@ -253,6 +253,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let sorteoActual = null;
 let numerosActuales = [];
 let animando = false;
+let CANTIDAD_NUMEROS = 100; // se pisa con config.cantidad_numeros apenas carga
+let DURACION_SHOW_MS = 60000; // se pisa con config.tiempo_sorteo_segundos apenas carga
 
 const tableroEl = document.getElementById('tablero');
 const boardWrap = document.getElementById('board-wrap');
@@ -275,7 +277,7 @@ function letrasCartel(text){
 // ---------- Tablero (se autoajusta para no generar scroll) ----------
 function construirTablero(){
   tableroEl.innerHTML = '';
-  for(let n=1;n<=100;n++){
+  for(let n=1;n<=CANTIDAD_NUMEROS;n++){
     const div = document.createElement('div');
     div.className = 'casillero';
     div.id = 'casillero-'+n;
@@ -289,13 +291,23 @@ function fitGrid(){
   const h = boardWrap.clientHeight;
   if(w < 10 || h < 10) return;
   const gap = 5;
-  const cell = Math.floor(Math.min((w - gap*9)/10, (h - gap*9)/10));
-  const size = Math.max(cell, 12);
-  tableroEl.style.gridTemplateColumns = `repeat(10, ${size}px)`;
+  const n = CANTIDAD_NUMEROS;
+  // Probamos distintas cantidades de columnas y nos quedamos con la que
+  // permite el casillero más grande posible sin generar scroll.
+  let mejorCols = Math.min(10, n);
+  let mejorSize = 0;
+  for(let cols = 1; cols <= n; cols++){
+    const filas = Math.ceil(n / cols);
+    const sizeAncho = (w - gap*(cols-1)) / cols;
+    const sizeAlto = (h - gap*(filas-1)) / filas;
+    const size = Math.min(sizeAncho, sizeAlto);
+    if(size > mejorSize){ mejorSize = size; mejorCols = cols; }
+  }
+  const size = Math.max(Math.floor(mejorSize), 12);
+  tableroEl.style.gridTemplateColumns = `repeat(${mejorCols}, ${size}px)`;
   tableroEl.style.gridAutoRows = `${size}px`;
   tableroEl.style.gap = gap+'px';
 }
-construirTablero();
 new ResizeObserver(fitGrid).observe(boardWrap);
 window.addEventListener('resize', fitGrid);
 window.addEventListener('orientationchange', ()=> setTimeout(fitGrid,200));
@@ -342,6 +354,13 @@ document.getElementById('modal-desc').addEventListener('click', (e)=>{
 });
 
 // ---------- Carga inicial ----------
+function aplicarConfigTablero(data){
+  CANTIDAD_NUMEROS = data?.cantidad_numeros || 100;
+  DURACION_SHOW_MS = (data?.tiempo_sorteo_segundos || 60) * 1000;
+  document.getElementById('mensaje-final').textContent =
+    `El sorteo se realizará una vez vendidos los ${CANTIDAD_NUMEROS} números.`;
+}
+
 async function cargarConfig(){
   const { data } = await sb.from('config').select('*').eq('id',1).single();
   if(data){
@@ -351,6 +370,8 @@ async function cargarConfig(){
       document.getElementById('avatar-img').src = data.avatar_url;
     }
   }
+  aplicarConfigTablero(data);
+  construirTablero();
 }
 
 async function cargarSorteoActivo(){
@@ -425,7 +446,7 @@ document.getElementById('avatar-wrap').addEventListener('click', ()=>{
 // ve exactamente el mismo momento del show que los demás. No hace falta
 // recargar la página en ningún momento: el nombre del ganador aparece solo,
 // en vivo, apenas se corta el conteo.
-const DURACION_SHOW_MS = 60000;      // 1 minuto: luz + contador juntos
+// (DURACION_SHOW_MS ahora se declara arriba como variable, cargada desde config)
 const INTERVALO_LUZ_MS = 80;         // velocidad CONSTANTE de la luz (no se acelera ni frena)
 
 // ---------- Música del sorteo ----------
@@ -620,6 +641,17 @@ function suscribirRealtime(){
     })
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'config', filter:'id=eq.1' }, payload=>{
       if(payload.new?.avatar_url){ document.getElementById('avatar-img').src = payload.new.avatar_url; }
+      const nuevaCantidad = payload.new?.cantidad_numeros;
+      const nuevoTiempoSeg = payload.new?.tiempo_sorteo_segundos;
+      const cambioCantidad = nuevaCantidad != null && nuevaCantidad !== CANTIDAD_NUMEROS;
+      const cambioTiempo = nuevoTiempoSeg != null && nuevoTiempoSeg !== Math.round(DURACION_SHOW_MS/1000);
+      if(cambioCantidad || cambioTiempo){
+        aplicarConfigTablero(payload.new);
+        if(cambioCantidad){
+          construirTablero();
+          cargarNumeros();
+        }
+      }
     })
     .subscribe();
 }

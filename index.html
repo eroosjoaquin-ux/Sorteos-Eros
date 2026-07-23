@@ -406,6 +406,16 @@ async function cargarFotos(){
 async function cargarNumeros(){
   const { data } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
   numerosActuales = data || [];
+  const totalReal = numerosActuales.length;
+  // La cantidad real de filas es la fuente de la verdad (la misma que usan
+  // registro.html y comprar.html), no el valor guardado en config. Si no
+  // coincide con lo que teníamos pintado, reconstruimos el tablero.
+  if(totalReal && totalReal !== CANTIDAD_NUMEROS){
+    CANTIDAD_NUMEROS = totalReal;
+    document.getElementById('mensaje-final').textContent =
+      `El sorteo se realizará una vez vendidos los ${CANTIDAD_NUMEROS} números.`;
+    construirTablero();
+  }
   pintarNumeros();
 }
 
@@ -641,17 +651,10 @@ function suscribirRealtime(){
     })
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'config', filter:'id=eq.1' }, payload=>{
       if(payload.new?.avatar_url){ document.getElementById('avatar-img').src = payload.new.avatar_url; }
-      const nuevaCantidad = payload.new?.cantidad_numeros;
-      const nuevoTiempoSeg = payload.new?.tiempo_sorteo_segundos;
-      const cambioCantidad = nuevaCantidad != null && nuevaCantidad !== CANTIDAD_NUMEROS;
-      const cambioTiempo = nuevoTiempoSeg != null && nuevoTiempoSeg !== Math.round(DURACION_SHOW_MS/1000);
-      if(cambioCantidad || cambioTiempo){
-        aplicarConfigTablero(payload.new);
-        if(cambioCantidad){
-          construirTablero();
-          cargarNumeros();
-        }
+      if(payload.new?.tiempo_sorteo_segundos != null){
+        DURACION_SHOW_MS = payload.new.tiempo_sorteo_segundos * 1000;
       }
+      cargarNumeros(); // resincroniza la cantidad real por si cambió
     })
     .subscribe();
 }

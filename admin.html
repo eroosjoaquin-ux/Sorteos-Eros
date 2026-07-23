@@ -591,10 +591,12 @@ function actualizarBotones(){
   document.getElementById('btn-sortear').disabled = !(vendidos > 0 && sorteoActual.estado==='activo');
   document.getElementById('btn-nuevo-sorteo').disabled = sorteoActual.estado!=='en_curso' || !sorteoActual.ganador_numero;
   document.getElementById('btn-generar-link').disabled = sorteoActual.estado !== 'activo' || !sorteoActual.premio_nombre || !sorteoActual.premio_nombre.trim();
-  // Una vez que el premio quedó guardado, el sorteo ya "arrancó" con la
-  // cantidad de números que tenía en ese momento: no se puede tocar más
-  // hasta el próximo "Nuevo sorteo".
-  document.getElementById('btn-config-tablero').disabled = !!(sorteoActual.premio_nombre && sorteoActual.premio_nombre.trim());
+  // Una vez que se tocó "Guardar premio", el sorteo ya "arrancó" con la
+  // cantidad de números y el tiempo que tenía en ese momento: no se puede
+  // tocar más hasta el próximo "Nuevo sorteo". No miramos el texto del
+  // premio (siempre tiene contenido, por su valor por defecto) sino esta
+  // marca explícita.
+  document.getElementById('btn-config-tablero').disabled = !!sorteoActual.premio_guardado;
 }
 
 // ---------- AVATAR ----------
@@ -660,11 +662,14 @@ async function cargarSolicitudes(){
 document.getElementById('btn-guardar-premio').addEventListener('click', async ()=>{
   const nombre = document.getElementById('premio-nombre').value.trim();
   const desc = document.getElementById('premio-desc').value.trim();
-  const { error } = await sb.from('sorteos').update({ premio_nombre: nombre, premio_descripcion: desc }).eq('id', sorteoActual.id);
+  const { error } = await sb.from('sorteos')
+    .update({ premio_nombre: nombre, premio_descripcion: desc, premio_guardado: true })
+    .eq('id', sorteoActual.id);
   toast(error ? 'No se pudo guardar' : 'Premio actualizado');
   if(!error){
     sorteoActual.premio_nombre = nombre;
     sorteoActual.premio_descripcion = desc;
+    sorteoActual.premio_guardado = true;
     actualizarBotones();
   }
 });

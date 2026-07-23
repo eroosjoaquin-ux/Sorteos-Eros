@@ -707,12 +707,17 @@ async function cargarLinks(){
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button class="btn secundario chico" data-url="${url}">Copiar</button>
+        <button class="btn oro chico" data-compartir="${url}">Compartir</button>
         <button class="btn peligro chico" data-id="${l.id}">Quitar</button>
       </div>
     `;
     item.querySelector('button[data-url]').addEventListener('click', (e)=>{
       navigator.clipboard.writeText(e.target.dataset.url);
       toast('Enlace copiado');
+    });
+    item.querySelector('button[data-compartir]').addEventListener('click', (e)=>{
+      const texto = `🎟️ Sorteos Eros — Tu ticket de participación:\n${e.target.dataset.compartir}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
     });
     item.querySelector('button[data-id]').addEventListener('click', async (e)=>{
       const btn = e.currentTarget;

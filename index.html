@@ -429,6 +429,21 @@ const DURACION_SHOW_MS = 60000;      // 1 minuto: luz + contador juntos
 const INTERVALO_LUZ_MS = 80;         // velocidad CONSTANTE de la luz (no se acelera ni frena)
 
 // ---------- Música del sorteo ----------
+const SILENCIO_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+let audioDesbloqueado = false;
+function desbloquearAudio(){
+  if(audioDesbloqueado) return;
+  const audio = document.getElementById('audio-sorteo');
+  audio.src = SILENCIO_WAV;
+  audio.play().then(()=>{
+    audio.pause();
+    audio.currentTime = 0;
+    audioDesbloqueado = true;
+  }).catch(()=>{});
+}
+document.addEventListener('click', desbloquearAudio, { once:true });
+document.addEventListener('touchstart', desbloquearAudio, { once:true });
+
 async function elegirYReproducirMusica(){
   try{
     const { data, error } = await sb.storage.from('audio').list();
@@ -543,8 +558,7 @@ function lanzarFestejo(){
   setTimeout(()=> document.querySelector('.marquee').classList.remove('festejo'), 2200);
   if(confettiIntervalId) clearInterval(confettiIntervalId);
   lanzarConfeti();
-  setTimeout(lanzarConfeti, 500);
-  confettiIntervalId = setInterval(lanzarConfeti, 600);
+  confettiIntervalId = setInterval(lanzarConfeti, 6000);
 }
 
 function lanzarConfeti(){

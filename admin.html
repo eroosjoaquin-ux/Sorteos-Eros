@@ -660,6 +660,7 @@ async function cargarSolicitudes(){
 
 // ---------- PREMIO ----------
 document.getElementById('btn-guardar-premio').addEventListener('click', async ()=>{
+  if(!sorteoActual){ toast('Primero configurá el tablero para iniciar el sorteo'); return; }
   const nombre = document.getElementById('premio-nombre').value.trim();
   const desc = document.getElementById('premio-desc').value.trim();
   const { error } = await sb.from('sorteos')
@@ -677,6 +678,7 @@ document.getElementById('btn-guardar-premio').addEventListener('click', async ()
 document.getElementById('input-foto').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
+  if(!sorteoActual){ toast('Primero configurá el tablero para iniciar el sorteo'); e.target.value = ''; return; }
   const path = `${sorteoActual.id}/${Date.now()}-${file.name}`;
   const { error: upErr } = await sb.storage.from('premios').upload(path, file);
   if(upErr){ toast('No se pudo subir la foto'); return; }
@@ -839,6 +841,15 @@ document.getElementById('ct-guardar').addEventListener('click', async ()=>{
   if(!cantidad || cantidad < 10){ toast('Cantidad de números inválida'); return; }
   if(!tiempo || tiempo < 1){ toast('El tiempo del sorteo tiene que ser mayor a 0'); return; }
 
+  // Si todavía no hay ningún sorteo activo, "Configuración del tablero" es
+  // lo que tiene que arrancarlo: nuevo_sorteo() crea el sorteo (con la
+  // cantidad de números que hubiera en config hasta ahora) y recién
+  // después actualizar_cantidad_numeros() lo ajusta a lo que se eligió acá.
+  if(!sorteoActual){
+    const { error: errNuevo } = await sb.rpc('nuevo_sorteo');
+    if(errNuevo){ toast('No se pudo iniciar el sorteo: ' + errNuevo.message); return; }
+  }
+
   const { error: errCantidad } = await sb.rpc('actualizar_cantidad_numeros', { p_cantidad: cantidad });
   if(errCantidad){ toast('No se pudo actualizar la cantidad: ' + errCantidad.message); return; }
 
@@ -847,11 +858,10 @@ document.getElementById('ct-guardar').addEventListener('click', async ()=>{
     .eq('id', 1);
   if(errTiempo){ toast('No se pudo guardar el tiempo: ' + errTiempo.message); return; }
 
-  configActual = { ...(configActual||{}), cantidad_numeros: cantidad, tiempo_sorteo_segundos: tiempo };
   document.getElementById('modal-config-tablero').classList.remove('show');
   toast('Configuración guardada');
 
-  if(sorteoActual) await cargarNumeros(); // refresca el tablero del admin al toque
+  await cargarTodo(); // refresca sorteoActual (por si se acaba de crear), tablero, botones, etc.
 });
 
 async function cargarLinks(){

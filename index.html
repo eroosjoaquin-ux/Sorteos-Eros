@@ -180,10 +180,23 @@
   .ficha-desc-texto{font-size:.95rem;line-height:1.5;color:#fff;white-space:pre-wrap;}
 
   .confetti-piece{position:fixed;top:-40px;font-size:22px;z-index:70;pointer-events:none;animation:caer linear forwards;}
+
+  .btn-audio-sorteo{
+    position:fixed;top:14px;right:14px;z-index:80;
+    width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+    background:rgba(20,10,10,.55);color:#fff;font-size:1.3rem;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);box-shadow:0 4px 14px rgba(0,0,0,.3);
+    transition:transform .15s ease,background .15s ease;
+  }
+  .btn-audio-sorteo:hover{transform:scale(1.06);}
+  .btn-audio-sorteo.muteado{opacity:.6;}
   @keyframes caer{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(105vh) rotate(360deg);opacity:.9;}}
 </style>
 </head>
 <body>
+
+<button id="btn-audio-sorteo" class="btn-audio-sorteo" style="display:none" title="Activar/desactivar sonido" aria-label="Activar/desactivar sonido">🔊</button>
 
 <div class="app">
 
@@ -406,16 +419,6 @@ async function cargarFotos(){
 async function cargarNumeros(){
   const { data } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
   numerosActuales = data || [];
-  const totalReal = numerosActuales.length;
-  // La cantidad real de filas es la fuente de la verdad (la misma que usan
-  // registro.html y comprar.html), no el valor guardado en config. Si no
-  // coincide con lo que teníamos pintado, reconstruimos el tablero.
-  if(totalReal && totalReal !== CANTIDAD_NUMEROS){
-    CANTIDAD_NUMEROS = totalReal;
-    document.getElementById('mensaje-final').textContent =
-      `El sorteo se realizará una vez vendidos los ${CANTIDAD_NUMEROS} números.`;
-    construirTablero();
-  }
   pintarNumeros();
 }
 
@@ -475,6 +478,37 @@ function desbloquearAudio(){
 document.addEventListener('click', desbloquearAudio, { once:true });
 document.addEventListener('touchstart', desbloquearAudio, { once:true });
 
+// El botón de audio solo aparece mientras el sorteo está en vivo (que es
+// cuando suena música). La preferencia de mute/activo queda guardada en
+// este navegador, así que si recargás la página y volvés a tocarlo, sigue
+// respetando lo que elegiste la vez anterior.
+let audioActivado = localStorage.getItem('audioSorteoActivado') !== 'false';
+const btnAudioSorteo = document.getElementById('btn-audio-sorteo');
+
+function aplicarMuteAudio(){
+  document.getElementById('audio-sorteo').muted = !audioActivado;
+  document.getElementById('audio-ganador').muted = !audioActivado;
+  btnAudioSorteo.textContent = audioActivado ? '🔊' : '🔇';
+  btnAudioSorteo.classList.toggle('muteado', !audioActivado);
+}
+function mostrarBotonAudio(){ btnAudioSorteo.style.display = 'flex'; }
+function ocultarBotonAudio(){ btnAudioSorteo.style.display = 'none'; }
+
+btnAudioSorteo.addEventListener('click', ()=>{
+  audioActivado = !audioActivado;
+  localStorage.setItem('audioSorteoActivado', audioActivado ? 'true' : 'false');
+  aplicarMuteAudio();
+  desbloquearAudio();
+  // Si se reactivó y la música debería estar sonando pero quedó pausada
+  // (por el bloqueo de autoplay del navegador), la arrancamos ahora que
+  // hay un toque real de la persona.
+  const audio = document.getElementById('audio-sorteo');
+  if(audioActivado && animando && audio.paused){
+    elegirYReproducirMusica();
+  }
+});
+aplicarMuteAudio();
+
 async function elegirYReproducirMusica(){
   try{
     const { data, error } = await sb.storage.from('audio').list();
@@ -487,6 +521,7 @@ async function elegirYReproducirMusica(){
     audio.src = urlData.publicUrl;
     audio.currentTime = 0;
     audio.volume = 0.6;
+    audio.muted = !audioActivado;
     await audio.play();
   }catch(e){
     // Los navegadores bloquean el autoplay con sonido si la persona todavía
@@ -512,6 +547,7 @@ async function reproducirSonidoGanador(){
     const audio = document.getElementById('audio-ganador');
     audio.src = urlData.publicUrl;
     audio.volume = 0.8;
+    audio.muted = !audioActivado;
     await audio.play();
   }catch(e){
     console.warn('No se pudo reproducir el sonido de ganador:', e);
@@ -520,6 +556,7 @@ async function reproducirSonidoGanador(){
 
 async function manejarSecuenciaSorteo(inicioMs){
   animando = true;
+  mostrarBotonAudio();
   const fin = inicioMs + DURACION_SHOW_MS;
   if(Date.now() < fin){
     elegirYReproducirMusica();
@@ -529,6 +566,7 @@ async function manejarSecuenciaSorteo(inicioMs){
   }
   await mostrarResultadoFinal();
   animando = false;
+  ocultarBotonAudio();
 }
 
 let ultimoResaltado = null;
@@ -651,10 +689,17 @@ function suscribirRealtime(){
     })
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'config', filter:'id=eq.1' }, payload=>{
       if(payload.new?.avatar_url){ document.getElementById('avatar-img').src = payload.new.avatar_url; }
-      if(payload.new?.tiempo_sorteo_segundos != null){
-        DURACION_SHOW_MS = payload.new.tiempo_sorteo_segundos * 1000;
+      const nuevaCantidad = payload.new?.cantidad_numeros;
+      const nuevoTiempoSeg = payload.new?.tiempo_sorteo_segundos;
+      const cambioCantidad = nuevaCantidad != null && nuevaCantidad !== CANTIDAD_NUMEROS;
+      const cambioTiempo = nuevoTiempoSeg != null && nuevoTiempoSeg !== Math.round(DURACION_SHOW_MS/1000);
+      if(cambioCantidad || cambioTiempo){
+        aplicarConfigTablero(payload.new);
+        if(cambioCantidad){
+          construirTablero();
+          cargarNumeros();
+        }
       }
-      cargarNumeros(); // resincroniza la cantidad real por si cambió
     })
     .subscribe();
 }

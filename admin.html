@@ -94,6 +94,9 @@
     background:var(--rojo);color:#fff;border:2px solid #fff;font-size:.65rem;line-height:1;padding:0;
   }
 
+  .foto-item video{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#000;}
+  .foto-item .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:.9rem;text-shadow:0 0 4px #000;pointer-events:none;}
+
   .tablero{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;}
   .casillero{
     aspect-ratio:1/1;border-radius:6px;background:#fdfdfb;border:1px solid var(--line);
@@ -254,8 +257,9 @@
           <div><label>Descripción</label><textarea id="premio-desc" rows="3"></textarea></div>
         </div>
         <div style="margin-top:14px">
-          <label>Fotos</label>
-          <input type="file" id="input-foto" accept="image/*">
+          <label>Fotos y videos</label>
+          <input type="file" id="input-foto" accept="image/*,video/*">
+          <p class="ayuda" style="margin:6px 0 0">Videos: mejor en MP4, hasta 50 MB.</p>
           <div class="galeria-admin" id="galeria-admin"></div>
         </div>
         <button class="btn secundario chico" id="btn-guardar-premio" style="margin-top:16px">Guardar premio</button>
@@ -308,6 +312,7 @@
       <div class="fila-acciones">
         <button class="btn secundario chico" id="btn-config-tablero">⚙️ Configuración del tablero</button>
       </div>
+      <p class="ayuda" id="config-bloqueada-nota" style="display:none;margin:0 0 10px">🔒 La cantidad de números y el tiempo se bloquean al guardar el premio. Para cambiarlos hay que iniciar un Nuevo sorteo.</p>
       <div class="card">
         <p class="ayuda" style="margin-top:0">Tocá un número vendido para ver o editar los datos del comprador.</p>
         <div class="tablero" id="tablero"></div>
@@ -434,6 +439,7 @@
         <span class="stepper-valor" id="ct-cantidad-valor">100</span>
         <button type="button" class="btn secundario chico" id="ct-cantidad-mas">+ 10</button>
       </div>
+      <p class="ayuda" id="ct-minimo-nota" style="margin:8px 0 0;text-align:center"></p>
     </div>
     <div class="campo">
       <label>Tiempo del sorteo (minutos : segundos)</label>
@@ -451,7 +457,7 @@
         </div>
       </div>
     </div>
-    <p class="ayuda">La cantidad se aplica al instante al sorteo activo (agrega o saca casilleros ahí mismo, en el admin, en la web pública, en comprar y en registro). Si intentás bajarla por debajo de un número que ya fue vendido, no te va a dejar. El tiempo del sorteo es cuánto dura la cuenta regresiva + la luz corriendo en la pantalla pública al sortear.</p>
+    <p class="ayuda">La cantidad se aplica al instante al sorteo activo (agrega o saca casilleros ahí mismo, en el admin, en la web pública, en comprar y en registro). No se puede bajar por debajo del número más alto que esté vendido o en pago. Solo se puede cambiar hasta que guardes el premio. El tiempo del sorteo es cuánto dura la cuenta regresiva + la luz corriendo en la pantalla pública al sortear.</p>
     <div class="acciones">
       <button class="btn secundario chico" id="ct-cancelar">Cancelar</button>
       <button class="btn chico" id="ct-guardar">Guardar</button>
@@ -465,6 +471,18 @@
 const SUPABASE_URL = "https://pzqrakjhnclqhmklrixn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_rc59pP-MBCuwMpr3zzPP4A_A5gVS1d_";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Escapa texto que escribió un comprador antes de meterlo en innerHTML
+// (nombre, correo, etc.), para que nadie pueda inyectar código en el admin.
+function escapeHtml(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Los videos se detectan por la extensión de la URL (no hace falta tocar la base).
+function esVideo(url){ return /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(url || ''); }
+// Nombre de archivo sin tildes, espacios ni símbolos raros (Storage los rechaza).
+function nombreSeguro(n){
+  return String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_');
+}
 
 let sorteoActual = null;
 let numerosActuales = [];
@@ -548,6 +566,7 @@ async function cargarTodo(){
     document.getElementById('btn-sortear').disabled = true;
     document.getElementById('btn-nuevo-sorteo').disabled = true;
     document.getElementById('btn-config-tablero').disabled = false;
+    document.getElementById('config-bloqueada-nota').style.display = 'none';
   }
   await cargarHistorial();
 }
@@ -596,7 +615,16 @@ function actualizarBotones(){
   // tocar más hasta el próximo "Nuevo sorteo". No miramos el texto del
   // premio (siempre tiene contenido, por su valor por defecto) sino esta
   // marca explícita.
-  document.getElementById('btn-config-tablero').disabled = !!sorteoActual.premio_guardado;
+  //EROS funcion vieja
+  //document.getElementById('btn-config-tablero').disabled = !!sorteoActual.premio_guardado;
+  //EROS
+  //EROS funcion nueva
+  const configBloqueada = !!sorteoActual.premio_guardado || sorteoActual.estado !== 'activo';
+  const btnConfig = document.getElementById('btn-config-tablero');
+  btnConfig.disabled = configBloqueada;
+  btnConfig.title = configBloqueada ? 'Bloqueado: ya se guardó el premio. Se habilita con un Nuevo sorteo.' : '';
+  document.getElementById('config-bloqueada-nota').style.display = configBloqueada ? 'block' : 'none';
+  //EROS
 }
 
 // ---------- AVATAR ----------
@@ -639,8 +667,8 @@ async function cargarSolicitudes(){
     item.className = 'item-fila';
     item.innerHTML = `
       <div>
-        <span class="badge ${cls}">${txt}</span>
-        <div style="margin-top:4px">${s.nombre_completo} · números ${s.numeros.join(', ')} · $${Number(s.monto).toLocaleString('es-AR')}</div>
+        <span class="badge ${cls}">${escapeHtml(txt)}</span>
+        <div style="margin-top:4px">${escapeHtml(s.nombre_completo)} · números ${s.numeros.join(', ')} · $${Number(s.monto).toLocaleString('es-AR')}</div>
         <div class="url">${new Date(s.creado_at).toLocaleString()}${resuelta && s.resuelto_manual_at ? ' · resuelto ' + new Date(s.resuelto_manual_at).toLocaleString() : ''}</div>
       </div>
       ${s.estado==='conflicto' ? '<button class="btn peligro chico" data-id="'+s.id+'">Marcar resuelto</button>' : ''}
@@ -675,18 +703,67 @@ document.getElementById('btn-guardar-premio').addEventListener('click', async ()
   }
 });
 
+//EROS funcion vieja
+//document.getElementById('input-foto').addEventListener('change', async (e)=>{
+//  const file = e.target.files[0];
+//  if(!file) return;
+//  if(!sorteoActual){ toast('Primero configurá el tablero para iniciar el sorteo'); e.target.value = ''; return; }
+//  const path = `${sorteoActual.id}/${Date.now()}-${file.name}`;
+//  const { error: upErr } = await sb.storage.from('premios').upload(path, file);
+//  if(upErr){ toast('No se pudo subir la foto'); return; }
+//  const { data: pub } = sb.storage.from('premios').getPublicUrl(path);
+//  await sb.from('premio_fotos').insert({ sorteo_id: sorteoActual.id, url: pub.publicUrl });
+//  toast('Foto agregada');
+//  await cargarFotos();
+//  e.target.value = '';
+//});
+//
+//async function cargarFotos(){
+//  const cont = document.getElementById('galeria-admin');
+//  cont.innerHTML = '';
+//  const { data } = await sb.from('premio_fotos').select('*').eq('sorteo_id', sorteoActual.id).order('orden');
+//  (data||[]).forEach(f=>{
+//    const item = document.createElement('div');
+//    item.className = 'foto-item';
+//    item.innerHTML = `<img src="${f.url}"><button data-id="${f.id}">&times;</button>`;
+//    item.querySelector('button').addEventListener('click', async ()=>{
+//      await sb.from('premio_fotos').delete().eq('id', f.id);
+//      cargarFotos();
+//    });
+//    cont.appendChild(item);
+//  });
+//}
+//EROS
+//EROS funcion nueva
+const MAX_VIDEO_MB = 50; // límite por defecto de Supabase Storage; si tu bucket permite más, subilo acá
 document.getElementById('input-foto').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
+  const input = e.target;
+  const file = input.files[0];
   if(!file) return;
-  if(!sorteoActual){ toast('Primero configurá el tablero para iniciar el sorteo'); e.target.value = ''; return; }
-  const path = `${sorteoActual.id}/${Date.now()}-${file.name}`;
-  const { error: upErr } = await sb.storage.from('premios').upload(path, file);
-  if(upErr){ toast('No se pudo subir la foto'); return; }
-  const { data: pub } = sb.storage.from('premios').getPublicUrl(path);
-  await sb.from('premio_fotos').insert({ sorteo_id: sorteoActual.id, url: pub.publicUrl });
-  toast('Foto agregada');
-  await cargarFotos();
-  e.target.value = '';
+  if(!sorteoActual){ toast('Primero configurá el tablero para iniciar el sorteo'); input.value = ''; return; }
+
+  const esVid = esVideo(file.name) || file.type.startsWith('video/');
+  const esImg = file.type.startsWith('image/');
+  if(!esVid && !esImg){ toast('Solo se pueden subir fotos o videos'); input.value = ''; return; }
+  if(esVid && file.size > MAX_VIDEO_MB * 1024 * 1024){
+    toast(`El video pesa demasiado (máximo ${MAX_VIDEO_MB} MB)`); input.value = ''; return;
+  }
+
+  input.disabled = true;
+  toast(esVid ? 'Subiendo video…' : 'Subiendo foto…');
+  try{
+    const path = `${sorteoActual.id}/${Date.now()}-${nombreSeguro(file.name)}`;
+    const { error: upErr } = await sb.storage.from('premios').upload(path, file, { contentType: file.type || undefined });
+    if(upErr){ toast('No se pudo subir el archivo: ' + upErr.message); return; }
+    const { data: pub } = sb.storage.from('premios').getPublicUrl(path);
+    const { error: insErr } = await sb.from('premio_fotos').insert({ sorteo_id: sorteoActual.id, url: pub.publicUrl });
+    if(insErr){ toast('Se subió pero no se pudo guardar: ' + insErr.message); return; }
+    toast(esVid ? 'Video agregado' : 'Foto agregada');
+    await cargarFotos();
+  } finally {
+    input.disabled = false;
+    input.value = '';
+  }
 });
 
 async function cargarFotos(){
@@ -696,14 +773,32 @@ async function cargarFotos(){
   (data||[]).forEach(f=>{
     const item = document.createElement('div');
     item.className = 'foto-item';
-    item.innerHTML = `<img src="${f.url}"><button data-id="${f.id}">&times;</button>`;
-    item.querySelector('button').addEventListener('click', async ()=>{
+    let media;
+    if(esVideo(f.url)){
+      media = document.createElement('video');
+      media.src = f.url + '#t=0.1';
+      media.muted = true; media.preload = 'metadata'; media.playsInline = true;
+    } else {
+      media = document.createElement('img');
+      media.src = f.url;
+    }
+    item.appendChild(media);
+    if(esVideo(f.url)){
+      const play = document.createElement('span');
+      play.className = 'play'; play.textContent = '▶';
+      item.appendChild(play);
+    }
+    const btn = document.createElement('button');
+    btn.innerHTML = '&times;'; btn.title = 'Quitar';
+    btn.addEventListener('click', async ()=>{
       await sb.from('premio_fotos').delete().eq('id', f.id);
       cargarFotos();
     });
+    item.appendChild(btn);
     cont.appendChild(item);
   });
 }
+//EROS
 
 // ---------- MODAL COMPRADOR ----------
 let numeroModalActual = null;
@@ -786,10 +881,33 @@ let ctCantidad = 100;
 let ctMinutos = 1;
 let ctSegundos = 0;
 
+//EROS funcion vieja
+//function pintarStepperCantidad(){
+//  document.getElementById('ct-cantidad-valor').textContent = ctCantidad;
+//  document.getElementById('ct-cantidad-menos').disabled = ctCantidad <= 10;
+//}
+//EROS
+//EROS funcion nueva
+let ctMinimo = 10;      // no se puede bajar de acá (número vendido o en pago más alto)
+let ctMaxOcupado = 0;
 function pintarStepperCantidad(){
   document.getElementById('ct-cantidad-valor').textContent = ctCantidad;
-  document.getElementById('ct-cantidad-menos').disabled = ctCantidad <= 10;
+  document.getElementById('ct-cantidad-menos').disabled = (ctCantidad - 10) < ctMinimo;
+  document.getElementById('ct-minimo-nota').textContent = ctMaxOcupado > 0
+    ? `Mínimo ${ctMinimo}: hay números vendidos o en pago hasta el #${ctMaxOcupado}.`
+    : '';
 }
+// Calcula hasta dónde se puede bajar la cantidad sin pisar números ocupados.
+async function calcularMinimoCantidad(){
+  const ocupados = sorteoActual ? numerosActuales.filter(n=>n.vendido).map(n=>n.numero) : [];
+  if(sorteoActual){
+    const { data: pend } = await sb.from('numeros_pendientes').select('numero').eq('sorteo_id', sorteoActual.id);
+    (pend||[]).forEach(p=> ocupados.push(p.numero));
+  }
+  const maxOcupado = ocupados.length ? Math.max(...ocupados) : 0;
+  return { minimo: Math.max(10, Math.ceil(maxOcupado / 10) * 10), maxOcupado };
+}
+//EROS
 function pintarStepperTiempo(){
   document.getElementById('ct-min-valor').textContent = String(ctMinutos).padStart(2,'0');
   document.getElementById('ct-seg-valor').textContent = String(ctSegundos).padStart(2,'0');
@@ -797,8 +915,27 @@ function pintarStepperTiempo(){
   document.getElementById('ct-seg-menos').disabled = ctSegundos <= 0 && ctMinutos <= 0;
 }
 
-document.getElementById('btn-config-tablero').addEventListener('click', ()=>{
-  ctCantidad = configActual?.cantidad_numeros || 100;
+//EROS funcion vieja
+//document.getElementById('btn-config-tablero').addEventListener('click', ()=>{
+//  ctCantidad = configActual?.cantidad_numeros || 100;
+//  const totalSeg = configActual?.tiempo_sorteo_segundos ?? 60;
+//  ctMinutos = Math.floor(totalSeg / 60);
+//  ctSegundos = totalSeg % 60;
+//  pintarStepperCantidad();
+//  pintarStepperTiempo();
+//  document.getElementById('modal-config-tablero').classList.add('show');
+//});
+//EROS
+//EROS funcion nueva
+document.getElementById('btn-config-tablero').addEventListener('click', async ()=>{
+  if(sorteoActual && (sorteoActual.premio_guardado || sorteoActual.estado !== 'activo')){
+    toast('La configuración está bloqueada hasta el próximo Nuevo sorteo');
+    return;
+  }
+  const { minimo, maxOcupado } = await calcularMinimoCantidad();
+  ctMinimo = minimo;
+  ctMaxOcupado = maxOcupado;
+  ctCantidad = Math.max(configActual?.cantidad_numeros || 100, ctMinimo);
   const totalSeg = configActual?.tiempo_sorteo_segundos ?? 60;
   ctMinutos = Math.floor(totalSeg / 60);
   ctSegundos = totalSeg % 60;
@@ -806,6 +943,7 @@ document.getElementById('btn-config-tablero').addEventListener('click', ()=>{
   pintarStepperTiempo();
   document.getElementById('modal-config-tablero').classList.add('show');
 });
+//EROS
 document.getElementById('ct-cancelar').addEventListener('click', ()=>{
   document.getElementById('modal-config-tablero').classList.remove('show');
 });
@@ -815,7 +953,7 @@ document.getElementById('ct-cantidad-mas').addEventListener('click', ()=>{
   pintarStepperCantidad();
 });
 document.getElementById('ct-cantidad-menos').addEventListener('click', ()=>{
-  if(ctCantidad <= 10) return;
+  if((ctCantidad - 10) < ctMinimo) return; //EROS antes: if(ctCantidad <= 10) return;
   ctCantidad -= 10;
   pintarStepperCantidad();
 });
@@ -844,34 +982,78 @@ document.getElementById('ct-seg-menos').addEventListener('click', ()=>{
   pintarStepperTiempo();
 });
 
+//EROS funcion vieja
+//document.getElementById('ct-guardar').addEventListener('click', async ()=>{
+//  const cantidad = ctCantidad;
+//  const tiempo = ctMinutos * 60 + ctSegundos;
+//  if(!cantidad || cantidad < 10){ toast('Cantidad de números inválida'); return; }
+//  if(!tiempo || tiempo < 1){ toast('El tiempo del sorteo tiene que ser mayor a 0'); return; }
+//
+//  // Si todavía no hay ningún sorteo activo, "Configuración del tablero" es
+//  // lo que tiene que arrancarlo: nuevo_sorteo() crea el sorteo (con la
+//  // cantidad de números que hubiera en config hasta ahora) y recién
+//  // después actualizar_cantidad_numeros() lo ajusta a lo que se eligió acá.
+//  if(!sorteoActual){
+//    const { error: errNuevo } = await sb.rpc('nuevo_sorteo');
+//    if(errNuevo){ toast('No se pudo iniciar el sorteo: ' + errNuevo.message); return; }
+//  }
+//
+//  const { error: errCantidad } = await sb.rpc('actualizar_cantidad_numeros', { p_cantidad: cantidad });
+//  if(errCantidad){ toast('No se pudo actualizar la cantidad: ' + errCantidad.message); return; }
+//
+//  const { error: errTiempo } = await sb.from('config')
+//    .update({ tiempo_sorteo_segundos: tiempo })
+//    .eq('id', 1);
+//  if(errTiempo){ toast('No se pudo guardar el tiempo: ' + errTiempo.message); return; }
+//
+//  document.getElementById('modal-config-tablero').classList.remove('show');
+//  toast('Configuración guardada');
+//
+//  await cargarTodo(); // refresca sorteoActual (por si se acaba de crear), tablero, botones, etc.
+//});
+//EROS
+//EROS funcion nueva
 document.getElementById('ct-guardar').addEventListener('click', async ()=>{
+  const btn = document.getElementById('ct-guardar');
   const cantidad = ctCantidad;
   const tiempo = ctMinutos * 60 + ctSegundos;
   if(!cantidad || cantidad < 10){ toast('Cantidad de números inválida'); return; }
+  if(cantidad < ctMinimo){ toast(`No se puede bajar de ${ctMinimo}: hay números ocupados hasta el #${ctMaxOcupado}`); return; }
   if(!tiempo || tiempo < 1){ toast('El tiempo del sorteo tiene que ser mayor a 0'); return; }
 
-  // Si todavía no hay ningún sorteo activo, "Configuración del tablero" es
-  // lo que tiene que arrancarlo: nuevo_sorteo() crea el sorteo (con la
-  // cantidad de números que hubiera en config hasta ahora) y recién
-  // después actualizar_cantidad_numeros() lo ajusta a lo que se eligió acá.
-  if(!sorteoActual){
-    const { error: errNuevo } = await sb.rpc('nuevo_sorteo');
-    if(errNuevo){ toast('No se pudo iniciar el sorteo: ' + errNuevo.message); return; }
+  const cambioCantidad = cantidad !== (configActual?.cantidad_numeros || 100);
+  const cambioTiempo = tiempo !== (configActual?.tiempo_sorteo_segundos ?? 60);
+  let refrescar = false;
+  btn.disabled = true; // evita doble toque mientras guarda
+  try{
+    // Si todavía no hay ningún sorteo activo, "Configuración del tablero" es
+    // lo que tiene que arrancarlo: nuevo_sorteo() crea el sorteo (con la
+    // cantidad de números que hubiera en config hasta ahora) y recién
+    // después actualizar_cantidad_numeros() lo ajusta a lo que se eligió acá.
+    if(!sorteoActual){
+      const { error: errNuevo } = await sb.rpc('nuevo_sorteo');
+      if(errNuevo){ toast('No se pudo iniciar el sorteo: ' + errNuevo.message); return; }
+      refrescar = true;
+    }
+    if(cambioCantidad){
+      const { error: errCantidad } = await sb.rpc('actualizar_cantidad_numeros', { p_cantidad: cantidad });
+      if(errCantidad){ toast('No se pudo actualizar la cantidad: ' + errCantidad.message); return; }
+      refrescar = true;
+    }
+    if(cambioTiempo){
+      const { error: errTiempo } = await sb.from('config').update({ tiempo_sorteo_segundos: tiempo }).eq('id', 1);
+      if(errTiempo){ toast('No se pudo guardar el tiempo: ' + errTiempo.message); return; }
+      refrescar = true;
+    }
+    document.getElementById('modal-config-tablero').classList.remove('show');
+    toast(refrescar ? 'Configuración guardada' : 'Sin cambios');
+  } finally {
+    btn.disabled = false;
+    // refresca sorteoActual (por si se acaba de crear), tablero, botones, etc.
+    if(refrescar) await cargarTodo();
   }
-
-  const { error: errCantidad } = await sb.rpc('actualizar_cantidad_numeros', { p_cantidad: cantidad });
-  if(errCantidad){ toast('No se pudo actualizar la cantidad: ' + errCantidad.message); return; }
-
-  const { error: errTiempo } = await sb.from('config')
-    .update({ tiempo_sorteo_segundos: tiempo })
-    .eq('id', 1);
-  if(errTiempo){ toast('No se pudo guardar el tiempo: ' + errTiempo.message); return; }
-
-  document.getElementById('modal-config-tablero').classList.remove('show');
-  toast('Configuración guardada');
-
-  await cargarTodo(); // refresca sorteoActual (por si se acaba de crear), tablero, botones, etc.
 });
+//EROS
 
 async function cargarLinks(){
   const cont = document.getElementById('links-lista');
@@ -967,10 +1149,10 @@ async function cargarHistorial(){
     const div = document.createElement('div');
     div.className = 'historial-item';
     div.innerHTML = `
-      <h3>${s.premio_nombre || 'Premio sorpresa'}</h3>
+      <h3>${escapeHtml(s.premio_nombre || 'Premio sorpresa')}</h3>
       <div class="meta">
         ${s.fecha_sorteo ? new Date(s.fecha_sorteo).toLocaleDateString() : 'Sin fecha'} ·
-        Ganador: ${s.ganador_numero ? '#'+s.ganador_numero+' · '+(s.ganador_nombre||'') : '—'}
+        Ganador: ${s.ganador_numero ? '#'+s.ganador_numero+' · '+escapeHtml(s.ganador_nombre||'') : '—'}
       </div>
     `;
     cont.appendChild(div);
@@ -1069,16 +1251,16 @@ function renderResultadoTicket(valido, mensaje, data, eraGanador, sorteo){
       <div class="card resultado-ticket invalido">
         <h3>❌ ${eraGanador ? 'Premio ya entregado' : 'No es un ganador válido'}</h3>
         <p>${mensaje}</p>
-        ${data ? `<p><b>${data.nombre_completo||'—'}</b> · números ${data.numeros.join(', ')}</p>` : ''}
+        ${data ? `<p><b>${escapeHtml(data.nombre_completo||'—')}</b> · números ${data.numeros.join(', ')}</p>` : ''}
       </div>`;
   }
   return `
     <div class="card resultado-ticket valido">
-      <h3>🎉 ¡GANADOR! #${sorteo.ganador_numero}${sorteo.premio_nombre ? ' · ' + sorteo.premio_nombre : ''}</h3>
-      <p><b>${data.nombre_completo || '—'}</b></p>
-      <p>${data.correo || ''} · DNI ${data.dni || '—'} · Tel ${data.telefono || '—'}</p>
+      <h3>🎉 ¡GANADOR! #${sorteo.ganador_numero}${sorteo.premio_nombre ? ' · ' + escapeHtml(sorteo.premio_nombre) : ''}</h3>
+      <p><b>${escapeHtml(data.nombre_completo || '—')}</b></p>
+      <p>${escapeHtml(data.correo || '')} · DNI ${escapeHtml(data.dni || '—')} · Tel ${escapeHtml(data.telefono || '—')}</p>
       <p><b>Números del ticket:</b> ${data.numeros.join(', ')}</p>
-      <button class="btn chico" id="btn-marcar-reclamado" data-id="${data.id}">Marcar como reclamado</button>
+      <button class="btn chico" id="btn-marcar-reclamado" data-id="${escapeHtml(data.id)}">Marcar como reclamado</button>
     </div>`;
 }
 
@@ -1165,10 +1347,10 @@ function dibujarContactos(contactos){
     fila.className = 'item-fila';
     fila.innerHTML = `
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
-        <input type="checkbox" data-correo="${c.correo}" ${c.enviado ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0">
+        <input type="checkbox" data-correo="${escapeHtml(c.correo)}" ${c.enviado ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0">
         <span>
-          <b>${c.nombre || c.correo}</b>
-          ${c.nombre ? `<br><span style="color:var(--ink-soft);font-size:.78rem">${c.correo}</span>` : ''}
+          <b>${escapeHtml(c.nombre || c.correo)}</b>
+          ${c.nombre ? `<br><span style="color:var(--ink-soft);font-size:.78rem">${escapeHtml(c.correo)}</span>` : ''}
         </span>
       </label>
     `;
@@ -1216,10 +1398,10 @@ function dibujarContactosEliminar(contactos){
       fila.className = 'contacto-fila' + (marcado ? ' marcado-eliminar' : '');
       fila.innerHTML = `
         <div class="info">
-          <b>${c.nombre || c.correo}</b>
-          ${c.nombre ? `<span>${c.correo}</span>` : ''}
+          <b>${escapeHtml(c.nombre || c.correo)}</b>
+          ${c.nombre ? `<span>${escapeHtml(c.correo)}</span>` : ''}
         </div>
-        <input type="checkbox" data-correo="${c.correo}" ${marcado ? 'checked' : ''}>
+        <input type="checkbox" data-correo="${escapeHtml(c.correo)}" ${marcado ? 'checked' : ''}>
       `;
       fila.querySelector('input[type="checkbox"]').addEventListener('change', (e)=>{
         const correo = e.target.dataset.correo;

@@ -104,6 +104,12 @@
     width:clamp(32px,6vh,46px);height:clamp(32px,6vh,46px);object-fit:cover;border-radius:10px;cursor:pointer;
     border:2px solid var(--gold);flex-shrink:0;
   }
+  .galeria video{
+    width:clamp(32px,6vh,46px);height:clamp(32px,6vh,46px);object-fit:cover;border-radius:10px;cursor:pointer;
+    border:2px solid var(--gold);display:block;background:#000;
+  }
+  .galeria .thumb-video{position:relative;flex-shrink:0;}
+  .galeria .thumb-video .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:12px;text-shadow:0 0 4px #000;pointer-events:none;}
   .galeria .vacio{color:var(--lila-texto);font-size:10px;}
 
   /* ---------- MARQUESINA / GANADOR ---------- */
@@ -173,6 +179,7 @@
   .lightbox{position:fixed;inset:0;background:rgba(8,4,18,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:24px;}
   .lightbox.show{display:flex;}
   .lightbox img{max-width:min(90vw,700px);max-height:85vh;border-radius:16px;box-shadow:0 0 40px rgba(255,209,102,.35);}
+  .lightbox video{max-width:min(90vw,700px);max-height:85vh;border-radius:16px;box-shadow:0 0 40px rgba(255,209,102,.35);background:#000;}
   .lightbox-close{position:absolute;top:18px;right:22px;color:#fff;font-size:1.8rem;background:none;border:none;cursor:pointer;}
   .ficha-numero{
     background:linear-gradient(160deg,#2a1454,#170826);border-radius:20px;padding:28px 34px;text-align:center;
@@ -251,6 +258,7 @@
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" id="lightbox-close">&times;</button>
   <img id="lightbox-img" src="" alt="Foto del premio">
+  <video id="lightbox-video" controls playsinline style="display:none"></video>
 </div>
 
 <div class="lightbox" id="modal-nombre">
@@ -412,6 +420,27 @@ async function cargarSorteoActivo(){
   suscribirRealtime();
 }
 
+//EROS funcion vieja
+//async function cargarFotos(){
+//  const galeria = document.getElementById('galeria');
+//  galeria.innerHTML = '';
+//  const { data } = await sb.from('premio_fotos').select('*').eq('sorteo_id', sorteoActual.id).order('orden');
+//  if(!data || data.length===0){
+//    galeria.innerHTML = '<span class="vacio">Sin fotos</span>';
+//    return;
+//  }
+//  data.forEach(f=>{
+//    const img = document.createElement('img');
+//    img.src = f.url; img.alt = 'Foto del premio';
+//    img.addEventListener('click', ()=> abrirLightbox(f.url));
+//    galeria.appendChild(img);
+//  });
+//}
+//EROS
+//EROS funcion nueva
+// Los videos se detectan por la extensión de la URL (no hace falta tocar la base).
+function esVideo(url){ return /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(url || ''); }
+
 async function cargarFotos(){
   const galeria = document.getElementById('galeria');
   galeria.innerHTML = '';
@@ -421,12 +450,26 @@ async function cargarFotos(){
     return;
   }
   data.forEach(f=>{
-    const img = document.createElement('img');
-    img.src = f.url; img.alt = 'Foto del premio';
-    img.addEventListener('click', ()=> abrirLightbox(f.url));
-    galeria.appendChild(img);
+    if(esVideo(f.url)){
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-video';
+      const vid = document.createElement('video');
+      vid.src = f.url + '#t=0.1';
+      vid.muted = true; vid.preload = 'metadata'; vid.playsInline = true;
+      const play = document.createElement('span');
+      play.className = 'play'; play.textContent = '▶';
+      wrap.appendChild(vid); wrap.appendChild(play);
+      wrap.addEventListener('click', ()=> abrirLightbox(f.url));
+      galeria.appendChild(wrap);
+    } else {
+      const img = document.createElement('img');
+      img.src = f.url; img.alt = 'Foto del premio';
+      img.addEventListener('click', ()=> abrirLightbox(f.url));
+      galeria.appendChild(img);
+    }
   });
 }
+//EROS
 
 async function cargarNumeros(){
   const { data } = await sb.from('numeros_publicos').select('*').eq('sorteo_id', sorteoActual.id).order('numero');
@@ -450,16 +493,44 @@ function actualizarGanadorUI(){
 }
 
 // ---------- Lightbox ----------
+//EROS funcion vieja
+//function abrirLightbox(src){
+//  document.getElementById('lightbox-img').src = src;
+//  document.getElementById('lightbox').classList.add('show');
+//}
+//document.getElementById('lightbox-close').addEventListener('click', ()=>{
+//  document.getElementById('lightbox').classList.remove('show');
+//});
+//document.getElementById('lightbox').addEventListener('click', (e)=>{
+//  if(e.target.id==='lightbox') document.getElementById('lightbox').classList.remove('show');
+//});
+//EROS
+//EROS funcion nueva
 function abrirLightbox(src){
-  document.getElementById('lightbox-img').src = src;
+  const img = document.getElementById('lightbox-img');
+  const vid = document.getElementById('lightbox-video');
+  if(esVideo(src)){
+    img.style.display = 'none';
+    vid.style.display = 'block';
+    vid.src = src;
+    vid.play().catch(()=>{ /* si el navegador bloquea el autoplay, queda con controles */ });
+  } else {
+    vid.pause(); vid.removeAttribute('src'); vid.style.display = 'none';
+    img.style.display = 'block';
+    img.src = src;
+  }
   document.getElementById('lightbox').classList.add('show');
 }
-document.getElementById('lightbox-close').addEventListener('click', ()=>{
+function cerrarLightbox(){
+  const vid = document.getElementById('lightbox-video');
+  vid.pause(); vid.removeAttribute('src'); vid.load(); // corta el audio y la descarga al cerrar
   document.getElementById('lightbox').classList.remove('show');
-});
+}
+document.getElementById('lightbox-close').addEventListener('click', cerrarLightbox);
 document.getElementById('lightbox').addEventListener('click', (e)=>{
-  if(e.target.id==='lightbox') document.getElementById('lightbox').classList.remove('show');
+  if(e.target.id==='lightbox') cerrarLightbox();
 });
+//EROS
 document.getElementById('avatar-wrap').addEventListener('click', ()=>{
   abrirLightbox(document.getElementById('avatar-img').src);
 });
